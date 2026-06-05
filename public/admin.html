@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Assistant Admin</title>
+  <link rel="stylesheet" href="/ui/styles.css">
+  <link rel="stylesheet" href="/ui/admin.css">
+</head>
+<body class="admin-body">
+  <main class="admin-shell">
+    <header class="admin-header">
+      <div>
+        <p class="eyebrow">Voice Assistant</p>
+        <h1>Assistant Admin</h1>
+      </div>
+      <a class="voice-link" href="/">Voice</a>
+    </header>
+
+    <section class="admin-card login-card" id="loginCard">
+      <h2>Admin Login</h2>
+      <form id="loginForm" class="login-form">
+        <label for="password">Password</label>
+        <div class="inline-form">
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+          <button type="submit">Login</button>
+        </div>
+      </form>
+    </section>
+
+    <div class="admin-grid hidden" id="adminApp">
+      <section class="admin-card">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">Knowledge Base</p>
+            <h2>Files</h2>
+          </div>
+          <form id="uploadForm">
+            <input id="knowledgeFile" name="file" type="file" accept=".txt,.md,.json,text/plain,text/markdown,application/json" required>
+            <button type="submit">Upload</button>
+          </form>
+        </div>
+        <div class="file-list" id="fileList"></div>
+      </section>
+
+      <section class="admin-card">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">Assistant Personality</p>
+            <h2>System Prompt</h2>
+          </div>
+          <button id="savePersonality" type="button">Save</button>
+        </div>
+        <textarea id="personality" rows="18" spellcheck="false"></textarea>
+      </section>
+
+      <section class="admin-card status-card">
+        <div>
+          <p class="eyebrow">System Status</p>
+          <h2>Loaded Data</h2>
+        </div>
+        <div class="status-grid">
+          <div>
+            <span id="fileCount">0</span>
+            <p>Knowledge files</p>
+          </div>
+          <div>
+            <span id="totalCharacters">0</span>
+            <p>Total characters</p>
+          </div>
+          <div>
+            <span id="personalityLoaded">No</span>
+            <p>Personality loaded</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </main>
+  <script type="module" src="/ui/admin.js"></script>
+</body>
+</html>

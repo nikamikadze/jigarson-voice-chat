@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>iPhone Mic Test</title>
+  <link rel="stylesheet" href="/ui/styles.css">
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div>
+        <div class="brand">iPhone mic test</div>
+        <div class="sub" id="state">choose a Voice Memo or video/audio recording</div>
+      </div>
+      <div class="status">
+        <span>Georgian STT</span>
+        <span>upload test</span>
+      </div>
+    </header>
+
+    <section class="diagnostics">
+      <label>audio file</label>
+      <form id="uploadForm" class="upload-form">
+        <input id="audioFile" type="file" name="audio" accept="audio/*,video/*" required>
+        <button type="submit">Transcribe</button>
+      </form>
+      <div class="diag-grid" id="fileInfo">
+        <span>No file selected</span>
+      </div>
+    </section>
+
+    <section class="live">
+      <label>transcript</label>
+      <div id="transcript">Waiting for upload.</div>
+    </section>
+  </main>
+
+  <script type="module">
+    const form = document.querySelector('#uploadForm');
+    const input = document.querySelector('#audioFile');
+    const state = document.querySelector('#state');
+    const fileInfo = document.querySelector('#fileInfo');
+    const transcript = document.querySelector('#transcript');
+
+    function renderFile(file) {
+      if (!file) {
+        fileInfo.innerHTML = '<span>No file selected</span>';
+        return;
+      }
+      fileInfo.innerHTML = `
+        <span>Name: ${file.name}</span>
+        <span>Type: ${file.type || 'unknown'}</span>
+        <span>Size: ${(file.size / 1024 / 1024).toFixed(2)} MB</span>
+        <span>Ready</span>
+      `;
+    }
+
+    input.addEventListener('change', () => renderFile(input.files[0]));
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const file = input.files[0];
+      if (!file) return;
+
+      state.textContent = 'uploading and transcribing';
+      transcript.textContent = 'Working...';
+      const body = new FormData();
+      body.set('audio', file);
+
+      try {
+        const response = await fetch('/api/transcribe-upload', { method: 'POST', body });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'Transcription failed');
+        state.textContent = `${payload.model}, language ${payload.language}`;
+        transcript.textContent = payload.text || '(empty transcript)';
+      } catch (err) {
+        state.textContent = 'error';
+        transcript.textContent = err.message;
+      }
+    });
+  </script>
+</body>
+</html>

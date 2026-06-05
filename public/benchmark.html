@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>STT Benchmark</title>
+  <link rel="stylesheet" href="/ui/styles.css">
+</head>
+<body>
+  <main class="app bench">
+    <header>
+      <div>
+        <div class="brand">STT Benchmark</div>
+        <div class="sub" id="connection">connecting</div>
+      </div>
+      <div class="status">
+        <span id="modelLabel">model</span>
+        <span id="languageLabel">language</span>
+      </div>
+      <button id="restart" class="icon" type="button">Restart</button>
+    </header>
+
+    <section class="diagnostics">
+      <label>configuration</label>
+      <div class="controls">
+        <select id="provider">
+          <option value="elevenlabs">ElevenLabs Scribe</option>
+          <option value="openai">OpenAI Realtime</option>
+        </select>
+        <select id="model">
+          <option value="gpt-realtime-whisper">gpt-realtime-whisper</option>
+          <option value="gpt-4o-transcribe">gpt-4o-transcribe</option>
+          <option value="gpt-4o-mini-transcribe">gpt-4o-mini-transcribe</option>
+          <option value="whisper-1">whisper-1</option>
+        </select>
+        <select id="language">
+          <option value="ka">language = ka</option>
+          <option value="omit">language omitted</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="diagnostics">
+      <label>audio diagnostics</label>
+      <div id="audioDiagnostics" class="diag-grid">
+        <span>Input: -</span>
+        <span>Output: -</span>
+        <span>Packets/sec: -</span>
+        <span>Bytes/sec: -</span>
+      </div>
+    </section>
+
+    <section class="live">
+      <label>current expected phrase</label>
+      <div id="expected"></div>
+      <label>partial transcript</label>
+      <div id="partial"></div>
+      <label>final transcript</label>
+      <div id="final"></div>
+    </section>
+
+    <section class="diagnostics">
+      <label>results</label>
+      <table class="bench-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Expected</th>
+            <th>Realtime transcript</th>
+            <th>Confidence</th>
+            <th>Latency</th>
+            <th>Observation</th>
+          </tr>
+        </thead>
+        <tbody id="results"></tbody>
+      </table>
+    </section>
+  </main>
+  <script type="module" src="/ui/benchmark.js"></script>
+</body>
+</html>

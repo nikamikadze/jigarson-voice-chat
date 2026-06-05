@@ -1,0 +1,45 @@
+name: Deploy assistant
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Verify
+        run: |
+          npm ci
+          node --check server.js
+          node --check llm/prompt.js
+          node --check llm/knowledge.js
+          node --check providers/gemini/live.js
+          node --check public/ui/app.js
+          node --check public/ui/mic-stream.js
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
+            cd /var/www/assistant.hybridmodel.ai
+            git fetch origin main
+            git reset --hard origin/main
+            npm ci --omit=dev
+            systemctl restart assistant-voice
+            systemctl status assistant-voice --no-pager
