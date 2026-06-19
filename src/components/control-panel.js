@@ -1,6 +1,8 @@
 // ── Control Panel: STOP (abort all) + BACKUP + live Activity feed ──
 // Self-contained: injects its own DOM + CSS and reads /api/events for activity.
 
+import { getDeviceId } from '../utils/device-id.js';
+
 let es = null;
 const MAX_ROWS = 60;
 
@@ -131,7 +133,7 @@ function wireButtons(root) {
 function connectActivity(root) {
   const feed = root.querySelector('#jcp-feed');
   try {
-    es = new EventSource('/api/events');
+    es = new EventSource(`/api/events?device=${encodeURIComponent(getDeviceId())}`);
   } catch { return; }
 
   es.onmessage = (ev) => {

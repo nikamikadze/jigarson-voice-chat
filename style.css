@@ -2400,6 +2400,12 @@ body.power-save .data-bar-fill::after {
 }
 
 @media (max-width: 768px) {
+  :root {
+    --mobile-chat-height: clamp(260px, 40dvh, 400px);
+    --mobile-action-gap: 12px;
+    --mobile-action-bottom: calc(var(--mobile-chat-height) + var(--mobile-action-gap) + env(safe-area-inset-bottom, 0px));
+  }
+
   /* ── 浮動工具列 ── */
   .mobile-toolbar {
     display: flex;
@@ -2407,7 +2413,7 @@ body.power-save .data-bar-fill::after {
     left: 50%;
     right: auto;
     top: auto;
-    bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+    bottom: var(--mobile-action-bottom);
     transform: translateX(-50%);
     flex-direction: row;
     gap: 10px;
@@ -2417,6 +2423,7 @@ body.power-save .data-bar-fill::after {
     border: 1px solid rgba(var(--accent-rgb), 0.18);
     border-radius: 999px;
     backdrop-filter: blur(12px);
+    box-shadow: 0 10px 34px rgba(0, 0, 0, 0.36);
   }
 
   .mobile-toolbar-btn {
@@ -2512,6 +2519,10 @@ body.power-save .data-bar-fill::after {
     bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   }
 
+  body:has(.terminal-panel.chat-panel.chat-collapsed) {
+    --mobile-chat-height: 98px;
+  }
+
 /* ══════════════════════════════════════════
    手機版介面 — 主要佈局
    策略：Orb 居中 + 聊天面板全寬底部
@@ -2541,8 +2552,9 @@ body.power-save .data-bar-fill::after {
 
   /* ── Scanner 邊框：縮小適配 ── */
   .scanner-frame {
-    width: min(62vw, 240px);
-    height: min(62vw, 240px);
+    width: min(58vw, 230px);
+    height: min(58vw, 230px);
+    top: 42%;
   }
 
   /* ── 上方面板：合併後的 SYSTEM STATUS（左右排列） ── */
@@ -2555,6 +2567,8 @@ body.power-save .data-bar-fill::after {
     padding: 0.375rem 0.5rem !important;
     z-index: 20;
     transform: none !important;
+    background: rgba(12, 10, 10, 0.68);
+    backdrop-filter: blur(14px);
   }
 
   .data-panel.system-status .data-panel-title {
@@ -2695,7 +2709,7 @@ body.power-save .data-bar-fill::after {
     display: block !important;
     left: 10px !important;
     right: 10px !important;
-    bottom: calc(clamp(300px, 46dvh, 460px) + 86px + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: calc(var(--mobile-chat-height) + 72px + env(safe-area-inset-bottom, 0px)) !important;
     transform: none !important;
     width: auto !important;
     max-width: none !important;
@@ -2713,13 +2727,13 @@ body.power-save .data-bar-fill::after {
 
   /* ── Orb 區域：縮小並對齊 camera Y=1.2 偏移 ── */
   .circular-visualizer {
-    width: 200px !important;
-    height: 200px !important;
+    width: min(54vw, 200px) !important;
+    height: min(54vw, 200px) !important;
   }
 
   .audio-wave {
-    width: 240px;
-    height: 240px;
+    width: min(64vw, 240px);
+    height: min(64vw, 240px);
   }
 
   /* ── 聊天面板：全寬底部固定 ── */
@@ -2730,7 +2744,7 @@ body.power-save .data-bar-fill::after {
     bottom: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
-    height: clamp(280px, 42dvh, 430px) !important;
+    height: var(--mobile-chat-height) !important;
     border-radius: 12px 12px 0 0;
     transform: none !important;
     z-index: 30;
@@ -2738,16 +2752,19 @@ body.power-save .data-bar-fill::after {
     min-width: 0;
     min-height: 0;
     box-shadow: 0 -16px 42px rgba(0, 0, 0, 0.38);
+    background: rgba(14, 12, 12, 0.82);
+    backdrop-filter: blur(16px);
   }
 
   .terminal-content {
     font-size: 0.75rem;
     padding: 0.625rem;
+    min-height: 0;
   }
 
   /* ── 聊天面板收合：只留 header + input ── */
   .terminal-panel.chat-panel.chat-collapsed {
-    height: auto !important;
+    height: 98px !important;
     min-height: 0 !important;
   }
 
@@ -2789,6 +2806,7 @@ body.power-save .data-bar-fill::after {
     font-size: 16px;
     min-height: 42px;
     padding: 0.625rem;
+    min-width: 0;
   }
 
   .chat-send-btn {
@@ -2836,7 +2854,7 @@ body.power-save .data-bar-fill::after {
 
   /* ── 通知：頂部顯示 ── */
   .notification {
-    top: calc(68px + env(safe-area-inset-top, 0px));
+    top: calc(118px + env(safe-area-inset-top, 0px));
     bottom: auto;
     font-size: 0.6875rem;
     padding: 0.375rem 0.75rem;
@@ -2850,6 +2868,10 @@ body.power-save .data-bar-fill::after {
 
 /* ── 超小螢幕（≤480px）── */
 @media (max-width: 480px) {
+  :root {
+    --mobile-chat-height: clamp(250px, 38dvh, 360px);
+  }
+
   .data-panel.system-status {
     padding: 0.375rem !important;
   }
@@ -2871,7 +2893,7 @@ body.power-save .data-bar-fill::after {
   }
 
   .terminal-panel.chat-panel {
-    height: clamp(300px, 46dvh, 460px) !important;
+    height: var(--mobile-chat-height) !important;
   }
 
   .circular-visualizer {

@@ -180,7 +180,7 @@ const demoMessages = [
   'NEW EMAIL: 3 UNREAD',
   'CALENDAR: 會議 14:00',
   'CPU: 12% | MEM: 5.2GB',
-  'SKILL: WHISPER READY',
+  'SKILL: GEMINI-STT READY',
   'CRON JOB EXECUTED',
 ];
 

@@ -29,7 +29,8 @@
     "sessionKey": "agent:main:main"
   },
   "stt": {
-    "engine": "gemini"
+    "engine": "google",
+    "languageCode": "ka-GE"
   },
   "usage": {
     "dailyBudget": 5,

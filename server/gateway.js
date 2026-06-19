@@ -231,6 +231,15 @@ export function initGateway({ url, token, sessionKey, onChat, extraSessionKeys: 
 export function isReady() { return gwReady; }
 export function getSessionKey() { return gwSessionKey; }
 
+// Allow chat events for an additional (per-device) session key to be relayed
+// to the SSE/voice layer. Safe to call repeatedly — it's a Set.
+export function acceptSessionKey(key) {
+  if (key && key !== configSessionKey) extraSessionKeys.add(key);
+}
+export function releaseSessionKey(key) {
+  if (key) extraSessionKeys.delete(key);
+}
+
 function queueConnect() {
   gwConnectNonce = null;
   gwConnectSent = false;

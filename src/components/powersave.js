@@ -11,6 +11,17 @@ export function isPowerSave() { return powerSaveEnabled; }
 
 export function setPowerSaveCallback(cb) { onPowerSaveChange = cb; }
 
+// Programmatic toggle (used by the mobile Lite-mode menu item). Keeps the
+// ECO button, localStorage, body class and render loop all in sync.
+export function setPowerSave(enabled) {
+  powerSaveEnabled = !!enabled;
+  localStorage.setItem(POWERSAVE_KEY, powerSaveEnabled);
+  const btn = document.getElementById('powersave-btn');
+  if (btn) updateButton(btn);
+  applyPowerSave();
+  return powerSaveEnabled;
+}
+
 export function initPowerSave() {
   // 讀取 localStorage
   powerSaveEnabled = localStorage.getItem(POWERSAVE_KEY) === 'true';

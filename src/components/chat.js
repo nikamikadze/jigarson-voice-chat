@@ -7,6 +7,7 @@ import { renderMarkdown } from './markdown.js';
 import { dbg } from '../utils/debug-log.js';
 import { playAudioUrl } from '../utils/audio-player.js';
 import { isVoiceActive } from './voice.js';
+import { getDeviceId } from '../utils/device-id.js';
 
 const terminalContent = document.getElementById('terminal-content');
 const chatInput = document.getElementById('chat-input');
@@ -135,7 +136,7 @@ function animateBar(barEl, toPct, duration = 800) {
 // 從後端拉 Model Status
 async function fetchModelStatus() {
   try {
-    const res = await fetch('/api/model-status');
+    const res = await fetch(`/api/model-status?device=${encodeURIComponent(getDeviceId())}`);
     if (!res.ok) return;
     const data = await res.json();
 
@@ -214,7 +215,7 @@ async function loadHistory() {
     const displayLimit = parseInt(localStorage.getItem('jarvis-history-limit') || '50');
     // 多拉幾倍，因為 tool calls/heartbeat 會被過濾掉
     const fetchLimit = displayLimit * 4;
-    const res = await fetch(`/api/history?limit=${fetchLimit}`);
+    const res = await fetch(`/api/history?limit=${fetchLimit}&device=${encodeURIComponent(getDeviceId())}`);
     if (!res.ok) return;
     const data = await res.json();
     const messages = data.messages || [];
@@ -295,7 +296,7 @@ async function loadHistory() {
 }
 
 function connectSSE() {
-  const evtSource = new EventSource('/api/events');
+  const evtSource = new EventSource(`/api/events?device=${encodeURIComponent(getDeviceId())}`);
   window.__jarvisSSE = evtSource;  // 共用給 tasks.js, schedule.js 等
 
   evtSource.onmessage = (event) => {
@@ -579,6 +580,7 @@ async function handleChatSend() {
       // 帶檔案 → FormData
       const formData = new FormData();
       formData.append('message', msg);
+      formData.append('device', getDeviceId());
       pendingFiles.forEach(f => formData.append('files', f));
       res = await fetch('/api/chat/upload', { method: 'POST', body: formData });
       // 清除附件
@@ -589,7 +591,7 @@ async function handleChatSend() {
       res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg }),
+        body: JSON.stringify({ message: msg, device: getDeviceId() }),
       });
     }
 

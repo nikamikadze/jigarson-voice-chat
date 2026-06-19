@@ -4,6 +4,7 @@
 import { MicVAD, utils } from '@ricky0123/vad-web';
 import { dbg } from '../utils/debug-log.js';
 import { playAudioUrl, stopAudio, isAudioPlaying } from '../utils/audio-player.js';
+import { getDeviceId } from '../utils/device-id.js';
 
 let vad = null;
 let isVoiceMode = false;
@@ -61,10 +62,26 @@ export function preWarmVAD() {
 }
 
 async function initVAD() {
+  if (vad) return vad;   // idempotent: never build two VAD instances
   vad = await MicVAD.new({
     model: 'v5',
     baseAssetPath: '/vad/',
-    onnxWASMBasePath: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/',
+    // Load the ONNX Runtime WASM from our own origin (/vad/), matching the
+    // installed onnxruntime-web version. The old CDN pin (1.14.0) mismatched
+    // the bundled runtime and failed to import as a module on iOS Safari
+    // ("NO AVAILABLE BACKEND … importing a module script failed").
+    onnxWASMBasePath: '/vad/',
+
+    // iOS Safari cannot allocate the multi-threaded WASM build's large shared
+    // memory reservation and throws "RangeError: out of memory". Force the
+    // runtime to run single-threaded (non-shared memory) — desktop is fine
+    // either way, and the VAD is tiny so single-threaded is plenty fast.
+    ortConfig: (ort) => {
+      try {
+        ort.env.wasm.numThreads = 1;
+        ort.env.wasm.proxy = false;
+      } catch {}
+    },
     positiveSpeechThreshold: 0.8,
     negativeSpeechThreshold: 0.35,
     minSpeechFrames: 5,
@@ -123,15 +140,19 @@ async function initVAD() {
       setState('listening');
     }
   });
+  return vad;
 }
 
 // ── 麥克風串流初始化 ──
 
 async function startMicStreaming() {
-  micCtx = new (window.AudioContext || window.webkitAudioContext)();
   micStream = await navigator.mediaDevices.getUserMedia({
     audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
   });
+  micCtx = new (window.AudioContext || window.webkitAudioContext)();
+  // iOS Safari creates the AudioContext in a 'suspended' state — must resume
+  // it (within the user gesture) or no audio frames are ever processed.
+  if (micCtx.state === 'suspended') { try { await micCtx.resume(); } catch {} }
   sourceNode = micCtx.createMediaStreamSource(micStream);
   procNode = micCtx.createScriptProcessor(4096, 1, 1);
   muteGain = micCtx.createGain();
@@ -256,16 +277,34 @@ export async function startVoiceMode() {
   if (isVoiceMode) return;
   dbg('voice.start');
 
-  // Mutual exclusion: only one voice mode at a time. Stop Gemini Live if it's on.
   try {
-    const live = await import('./gemini-live.js');
-    if (live.isLiveActive && live.isLiveActive()) await live.stopLive();
-  } catch {}
+    // 1) Acquire the microphone FIRST — synchronously inside the user's tap.
+    //    iOS Safari only allows getUserMedia (and the permission prompt) while
+    //    the user gesture is still "active", and every await below would
+    //    consume it. Doing this first also grants mic permission for the VAD's
+    //    own internal getUserMedia that follows.
+    await startMicStreaming();
+    dbg('voice.micStreamingStarted');
 
-  try {
-    // Open WebSocket
+    // 2) Mutual exclusion: only one voice mode at a time. Stop Gemini Live if on.
+    try {
+      const live = await import('./gemini-live.js');
+      if (live.isLiveActive && live.isLiveActive()) await live.stopLive();
+    } catch {}
+
+    // 3) Ensure the VAD is ready. Let a real failure throw (with a clear
+    //    message) instead of silently leaving `vad` null and then crashing on
+    //    `vad.start()` with "null is not an object".
+    if (vadReady) { try { await vadReady; } catch {} }
+    if (!vad) await initVAD();
+    if (!vad) throw new Error('VAD 初始化失敗（模型/worklet 載入失敗）');
+    dbg('voice.vadInitOk');
+
+    // 4) Open WebSocket to the STT backend.
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    ws = new WebSocket(`${proto}://${location.host}/api/voice-stt`);
+    // /api/voice-stt streams PCM16 to Google Cloud Speech-to-Text while the
+    // user speaks, so we are not waiting on a post-speech upload/transcribe step.
+    ws = new WebSocket(`${proto}://${location.host}/api/voice-stt?device=${encodeURIComponent(getDeviceId())}`);
     ws.onmessage = (e) => handleWsMsg(e.data);
 
     // Wait for the WebSocket to open
@@ -294,16 +333,9 @@ export async function startVoiceMode() {
       isServerDone = true;
     };
 
-    // VAD: await the pre-warmed promise (resolves instantly if already done)
-    if (!vad) {
-      await preWarmVAD();
-      dbg('voice.vadInitOk');
-    }
+    // 5) Start detecting speech.
     await vad.start();
     dbg('voice.vadStarted');
-
-    await startMicStreaming();
-    dbg('voice.micStreamingStarted');
 
     isVoiceMode = true;
     setState('listening');

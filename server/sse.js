@@ -1,6 +1,8 @@
 // ── SSE 廣播管理 ──
 
-const sseClients = new Set();
+// res -> sessionKey. Each browser registers with its own per-device session
+// key so an agent reply is delivered only to the device that asked for it.
+const sseClients = new Map();
 const voiceChatHandlers = new Set();
 
 // The main/chat-panel session key. Events from other sessions (e.g. the lean
@@ -17,7 +19,7 @@ function safeWrite(res, payload) {
   }
 }
 
-export function addClient(res) { sseClients.add(res); }
+export function addClient(res, sessionKey) { sseClients.set(res, sessionKey || null); }
 export function removeClient(res) { sseClients.delete(res); }
 export function clientCount() { return sseClients.size; }
 export function addVoiceHandler(h) { voiceChatHandlers.add(h); }
@@ -79,22 +81,27 @@ export function broadcastChat(payload) {
     event.activity = activity;
   }
 
-  // Voice-agent (non-main session) events go ONLY to voice handlers, so the
-  // typed chat panel never renders spoken-mode replies.
-  const isMainSession = !mainSessionKey || !payload.sessionKey || payload.sessionKey === mainSessionKey;
-  if (isMainSession) {
-    const data = JSON.stringify(event);
-    for (const res of sseClients) safeWrite(res, `data: ${data}\n\n`);
+  // Deliver to the SSE client(s) whose own per-device session matches this
+  // event. Legacy clients with no key (key === null) fall back to the main
+  // session. Voice-session events match no chat client's key, so spoken-mode
+  // replies still never render in the typed chat panel.
+  const payloadKey = payload.sessionKey || null;
+  const data = JSON.stringify(event);
+  for (const [res, key] of sseClients) {
+    const match = key
+      ? key === payloadKey
+      : (!mainSessionKey || !payloadKey || payloadKey === mainSessionKey);
+    if (match) safeWrite(res, `data: ${data}\n\n`);
   }
   for (const handler of voiceChatHandlers) { try { handler(payload); } catch {} }
 }
 
 export function broadcastSystem(data) {
   const msg = JSON.stringify({ type: 'system', ...data });
-  for (const res of sseClients) safeWrite(res, `data: ${msg}\n\n`);
+  for (const res of sseClients.keys()) safeWrite(res, `data: ${msg}\n\n`);
 }
 
 export function broadcastEvent(type) {
   const msg = JSON.stringify({ type });
-  for (const res of sseClients) safeWrite(res, `data: ${msg}\n\n`);
+  for (const res of sseClients.keys()) safeWrite(res, `data: ${msg}\n\n`);
 }

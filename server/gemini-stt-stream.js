@@ -8,8 +8,9 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import path from 'path';
 import { appendFile } from 'fs/promises';
-import { gwRequest } from './gateway.js';
+import { gwRequest, acceptSessionKey } from './gateway.js';
 import { addVoiceHandler, removeVoiceHandler } from './sse.js';
+import { deviceSessionKey } from './session-key.js';
 import { ttsSentence } from './tts.js';
 import { brainChat, getActiveBrain } from './brain.js';
 
@@ -33,7 +34,7 @@ function logStt(obj) {
 export function initGeminiSttStream(httpServer, config = {}) {
   const wss = new WebSocketServer({ noServer: true });
 
-  wss.on('connection', (ws) => {
+  wss.on('connection', (ws, request) => {
     const key = process.env.GEMINI_API_KEY;
     if (!key) {
       ws.send(JSON.stringify({ type: 'error', message: 'GEMINI_API_KEY not set on server' }));
@@ -42,7 +43,12 @@ export function initGeminiSttStream(httpServer, config = {}) {
     }
 
     const sessionKey = config.agent?.sessionKey || 'agent:main:main';
-    const voiceSessionKey = config.voice?.sessionKey || sessionKey;
+    // Per-device private voice session so two phones never hear each other.
+    let device = null;
+    try { device = new URL(request.url, 'http://x').searchParams.get('device'); } catch {}
+    const voiceBase = config.voice?.sessionKey || sessionKey;
+    const voiceSessionKey = deviceSessionKey(voiceBase, device, 'wv');
+    acceptSessionKey(voiceSessionKey);
     const sttModel = config.voice?.sttModel || process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview';
     const rawLang = config.voice?.sttLanguage || 'ka-GE';
     let sttLanguage = LANG_MAP[rawLang.toLowerCase()] || rawLang;
@@ -384,6 +390,8 @@ export function initGeminiSttStream(httpServer, config = {}) {
             };
 
             handler = (payload) => {
+              // Only react to this device's own voice session.
+              if (payload.sessionKey && payload.sessionKey !== voiceSessionKey) return;
               const text = (() => {
                 if (!payload.message?.content) return '';
                 const c = payload.message.content;

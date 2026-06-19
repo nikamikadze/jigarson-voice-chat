@@ -103,6 +103,63 @@ export async function geminiTranscribe(audioBuffer, {
   return parts.map(p => p.text || '').join('').trim();
 }
 
+// ── Chat (LLM): streaming text generation for the "brain" path ──
+// Uses streamGenerateContent with SSE for low time-to-first-token. Calls
+// onToken(text) for each delta and returns the full assembled text.
+const CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || 'gemini-3.5-flash';
+// Thinking budget for chat: -1 = dynamic (model decides — smartest), 0 = off (fastest
+// but dumb), or a token cap (e.g. 2048) to balance. Default: dynamic for quality.
+const THINKING_BUDGET = Number(process.env.GEMINI_THINKING_BUDGET ?? -1);
+
+export function geminiChatModel() { return CHAT_MODEL; }
+
+export async function geminiChatStream({ system, user, onToken, temperature = 0.7, signal, model = CHAT_MODEL } = {}) {
+  const body = {
+    contents: [{ role: 'user', parts: [{ text: user }] }],
+    generationConfig: { temperature, thinkingConfig: { thinkingBudget: THINKING_BUDGET } },
+  };
+  if (system) body.systemInstruction = { parts: [{ text: system }] };
+
+  const res = await fetch(`${API_ROOT}/${model}:streamGenerateContent?alt=sse`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey() },
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!res.ok || !res.body) {
+    const t = await res.text().catch(() => '');
+    throw new Error(`Gemini chat ${res.status}: ${t.slice(0, 300)}`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  let full = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop();
+    for (const line of lines) {
+      const s = line.trim();
+      if (!s.startsWith('data:')) continue;
+      const payload = s.slice(5).trim();
+      if (!payload || payload === '[DONE]') continue;
+      try {
+        const j = JSON.parse(payload);
+        const parts = j?.candidates?.[0]?.content?.parts || [];
+        const delta = parts.map(p => p.text || '').join('');
+        if (delta) { full += delta; onToken?.(delta); }
+      } catch { /* skip keep-alive / partial */ }
+    }
+  }
+
+  return full;
+}
+
 // ── TTS: synthesize speech, returns { buffer, contentType } (WAV) ──
 // Gemini's TTS classifier can (a) reject a bare transcript with HTTP 400
 // ("Model tried to generate text, but it should only be used for TTS") or

@@ -5,7 +5,8 @@ import multer from 'multer';
 import os from 'os';
 import path from 'path';
 import { copyFile, unlink, mkdir } from 'fs/promises';
-import { gwRequest } from '../gateway.js';
+import { gwRequest, acceptSessionKey } from '../gateway.js';
+import { deviceSessionKey } from '../session-key.js';
 
 const router = Router();
 const fileUpload = multer({ dest: os.tmpdir(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -51,8 +52,10 @@ router.post('/chat/upload', fileUpload.array('files', 10), async (req, res) => {
     bumpMsgCount();
     const idempotencyKey = `jarvis-upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const guardedMessage = `${fullMessage}\n\n(${REPLY_GUARD})`;
+    const sessionKey = deviceSessionKey(req.app.locals.sessionKey, req.body.device, 'web');
+    acceptSessionKey(sessionKey);
     const result = await gwRequest('chat.send', {
-      message: guardedMessage, sessionKey: req.app.locals.sessionKey,
+      message: guardedMessage, sessionKey,
       idempotencyKey, deliver: false,
     });
     res.json({ ok: true, files: filePaths.map(f => path.basename(f)), ...result });
@@ -69,8 +72,10 @@ router.post('/chat', async (req, res) => {
   bumpMsgCount();
   try {
     const idempotencyKey = `jarvis-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const sessionKey = deviceSessionKey(req.app.locals.sessionKey, req.body.device, 'web');
+    acceptSessionKey(sessionKey);
     const result = await gwRequest('chat.send', {
-      message: `${message}\n\n(${REPLY_GUARD})`, sessionKey: req.app.locals.sessionKey,
+      message: `${message}\n\n(${REPLY_GUARD})`, sessionKey,
       idempotencyKey, deliver: false,
     });
     res.json({ ok: true, ...result });
@@ -82,8 +87,10 @@ router.post('/chat', async (req, res) => {
 // 歷史
 router.get('/history', async (req, res) => {
   try {
+    const sessionKey = deviceSessionKey(req.app.locals.sessionKey, req.query.device, 'web');
+    acceptSessionKey(sessionKey);
     const result = await gwRequest('chat.history', {
-      sessionKey: req.app.locals.sessionKey,
+      sessionKey,
       limit: parseInt(req.query.limit) || 20,
     });
     res.json(result);

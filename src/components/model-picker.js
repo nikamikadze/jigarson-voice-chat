@@ -3,6 +3,7 @@
 // the `/model <id>` command (handled by /api/model on the server).
 
 import { showNotification } from './notifications.js';
+import { getDeviceId } from '../utils/device-id.js';
 
 export async function initModelPicker() {
   const mount = document.getElementById('agent-model-picker');
@@ -47,7 +48,7 @@ export async function initModelPicker() {
       const r = await fetch('/api/model', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model }),
+        body: JSON.stringify({ model, device: getDeviceId() }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'failed');

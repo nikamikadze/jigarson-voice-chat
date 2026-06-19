@@ -15,7 +15,7 @@
     "danger": "#ff4e42"
   },
   "skills": [
-    { "icon": "🎤", "name": "WHISPER", "status": "on" },
+    { "icon": "🎤", "name": "GEMINI-STT", "status": "on" },
     { "icon": "🐦", "name": "X-API", "status": "on" },
     { "icon": "📧", "name": "GMAIL", "status": "on" },
     { "icon": "📅", "name": "CALENDAR", "status": "on" },

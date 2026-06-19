@@ -6,13 +6,14 @@ import os from 'os';
 import { readFile, appendFile } from 'fs/promises';
 import { fileURLToPath } from 'url';
 
-import { initGateway, gwRequest } from './gateway.js';
+import { initGateway, gwRequest, acceptSessionKey } from './gateway.js';
 import { addClient, removeClient, broadcastChat, setMainSessionKey } from './sse.js';
+import { deviceSessionKey } from './session-key.js';
 import { initTTS } from './tts.js';
 import { startSystemMonitor } from './system-monitor.js';
 import { initLiveProxy } from './gemini-live.js';
 import { initVoiceStream } from './voice-stream.js';
-import { initGeminiSttStream } from './gemini-stt-stream.js';
+import { initGoogleSttStream } from './google-stt-stream.js';
 
 // Routes
 import chatRoutes from './routes/chat.js';
@@ -92,7 +93,10 @@ app.get('/api/events', (req, res) => {
     Connection: 'keep-alive', 'Access-Control-Allow-Origin': '*',
   });
   res.write('data: {"type":"connected"}\n\n');
-  addClient(res);
+  // Each browser gets its own private session, derived from its device id.
+  const key = deviceSessionKey(SESSION_KEY, req.query.device, 'web');
+  acceptSessionKey(key);
+  addClient(res, key);
   req.on('close', () => removeClient(res));
 });
 
@@ -158,8 +162,8 @@ const liveWss = initLiveProxy(server, {
 // Voice streaming proxy (WebSocket at /api/voice-stream)
 const voiceWss = initVoiceStream(server, config);
 
-// Gemini Live streaming STT proxy (WebSocket at /api/voice-stt)
-const sttWss = initGeminiSttStream(server, config);
+// Google Cloud streaming STT proxy (WebSocket at /api/voice-stt)
+const sttWss = initGoogleSttStream(server, config);
 
 server.on('upgrade', (request, socket, head) => {
   const pathname = request.url.split('?')[0];

@@ -41,6 +41,7 @@ import { initModelPicker } from './components/model-picker.js';
 import { initBrainPicker } from './components/brain-picker.js';
 import { initSessions } from './components/sessions.js';
 import { initControlPanel } from './components/control-panel.js';
+import { initMobileMenu } from './components/mobile-menu.js';
 import { initDebugLog } from './utils/debug-log.js';
 
 document.addEventListener('DOMContentLoaded', async function () {
@@ -84,6 +85,7 @@ document.addEventListener('DOMContentLoaded', async function () {
   initSessions();
   initControlPanel();
   initPowerSave();
+  initMobileMenu();
   initSpectrumCollapse();
   initSystemMonitor();
   initVisualizers();

@@ -83,8 +83,8 @@ export function initTTS(config) {
   cartesiaModel = config.cartesiaModel || cartesiaModel;
   openaiVoice = config.openaiVoice || openaiVoice;
   if (currentEngine === 'cartesia' && !cartesiaAvailable()) {
-    console.warn('[TTS] engine=cartesia but CARTESIA_API_KEY missing; using fallback chain.');
-    currentEngine = 'edge';
+    // No fallback by design — surface the misconfig loudly instead of switching voices.
+    console.error('[TTS] engine=cartesia but CARTESIA_API_KEY missing — TTS will error until the key is set.');
   }
 }
 
@@ -196,20 +196,11 @@ async function speakOne(engine, text) {
   }
 }
 
-// Cartesia only — no Edge/macOS fallback. If Cartesia fails, no audio is produced
-// (so a wrong voice is never played). Set FORCE_CARTESIA_ONLY=0 to restore fallbacks.
+// NO FALLBACK by design. Only the configured engine is ever used, so a wrong
+// voice (Edge/macOS/Gemini) is never played. If that engine fails, the turn
+// errors out (clear failure) instead of silently switching engines.
 function buildChain() {
-  // Fallback ON by default now (set FORCE_CARTESIA_ONLY=1 to force Cartesia-only).
-  // Order: Cartesia (primary) → Gemini TTS (your Google key) → Edge → macOS, so
-  // when Cartesia runs out of credits you still hear a real voice, not silence.
-  const cartesiaOnly = process.env.FORCE_CARTESIA_ONLY === '1';
-  if (cartesiaOnly) return ['cartesia'];
-  const base = [currentEngine, 'cartesia', 'gemini', 'edge', 'macos'];
-  const order = [];
-  for (const e of base) {
-    if (!order.includes(e) && TTS_ENGINES[e] && TTS_ENGINES[e].available) order.push(e);
-  }
-  return order;
+  return [currentEngine];
 }
 
 // Synthesize with automatic fallback. Returns { buffer, contentType }.

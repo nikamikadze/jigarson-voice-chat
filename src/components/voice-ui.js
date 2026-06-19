@@ -73,17 +73,33 @@ function injectButton() {
     @media (max-width: 768px) {
       #voice-toggle-btn {
         left: 14px; right: auto;
-        bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+        bottom: var(--mobile-action-bottom, calc(272px + env(safe-area-inset-bottom, 0px)));
         min-height: 44px;
         padding: 9px 13px;
+        box-shadow: 0 10px 34px rgba(0, 0, 0, 0.36), 0 0 18px rgba(var(--accent-rgb, 41 211 255), 0.25);
       }
       #voice-test-btn {
-        left: 14px !important; right: auto !important;
-        bottom: calc(144px + env(safe-area-inset-bottom, 0px)) !important;
+        left: auto !important; right: 14px !important;
+        bottom: var(--mobile-action-bottom, calc(272px + env(safe-area-inset-bottom, 0px))) !important;
         min-height: 40px;
+        box-shadow: 0 10px 34px rgba(0, 0, 0, 0.36);
       }
       body.mobile-sheet-open #voice-toggle-btn,
       body.mobile-sheet-open #voice-test-btn {
+        display: none;
+      }
+      body:has(.terminal-panel.chat-panel.chat-collapsed) #voice-toggle-btn,
+      body:has(.terminal-panel.chat-panel.chat-collapsed) #voice-test-btn {
+        bottom: calc(110px + env(safe-area-inset-bottom, 0px)) !important;
+      }
+    }
+    @media (max-width: 374px) {
+      #voice-toggle-btn {
+        width: 46px;
+        justify-content: center;
+        padding: 9px 0;
+      }
+      #voice-toggle-btn .voice-label {
         display: none;
       }
     }`;

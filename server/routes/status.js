@@ -4,6 +4,7 @@ import { Router } from 'express';
 import { readFile } from 'fs/promises';
 import { isReady, getSessionKey, gwRequest } from '../gateway.js';
 import { getMsgCount } from './chat.js';
+import { deviceSessionKey } from '../session-key.js';
 
 const router = Router();
 
@@ -29,17 +30,20 @@ export default function statusRoutes(config, ocConfigPath) {
   // Model Status
   router.get('/model-status', async (req, res) => {
     try {
+      // Read THIS device's own session so the displayed model/tokens reflect
+      // the per-device session the browser actually chats on (not the shared one).
+      const sessionKey = deviceSessionKey(req.app.locals.sessionKey, req.query.device, 'web');
       const hist = await gwRequest('chat.history', {
-        sessionKey: req.app.locals.sessionKey, limit: 1,
+        sessionKey, limit: 1,
       });
       const msgs = hist.messages || [];
       const lastMsg = msgs.length ? msgs[msgs.length - 1] : null;
 
       let sessionInfo = {};
       try {
-        const list = await gwRequest('sessions.list', { limit: 20 });
+        const list = await gwRequest('sessions.list', { limit: 50 });
         const sessions = list.sessions || list;
-        sessionInfo = sessions.find(s => s.key === req.app.locals.sessionKey) || {};
+        sessionInfo = sessions.find(s => s.key === sessionKey) || {};
       } catch {}
 
       res.json({

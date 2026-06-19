@@ -4,10 +4,11 @@
 import { WebSocketServer } from 'ws';
 import path from 'path';
 import { appendFile } from 'fs/promises';
-import { gwRequest } from './gateway.js';
+import { gwRequest, acceptSessionKey } from './gateway.js';
 import { addVoiceHandler, removeVoiceHandler } from './sse.js';
 import { ttsSentence } from './tts.js';
 import { transcribe } from './stt.js';
+import { deviceSessionKey } from './session-key.js';
 import { brainChat, getActiveBrain } from './brain.js';
 
 function logVoice(obj) {
@@ -41,14 +42,19 @@ function pcm16ToWav(pcmBuffer, sampleRate = 16000) {
 export function initVoiceStream(httpServer, config = {}) {
   const wss = new WebSocketServer({ noServer: true });
 
-  wss.on('connection', (ws) => {
+  wss.on('connection', (ws, request) => {
     console.log('[VOICE-STREAM] Browser connected');
     let pcmBuffers = [];
     let state = 'idle'; // 'idle' | 'recording' | 'processing'
     let sttLanguage = config.voice?.sttLanguage || '';
     let replyLanguage = config.voice?.replyLanguage || '';
     const sessionKey = config.agent?.sessionKey || 'agent:main:main';
-    const voiceSessionKey = config.voice?.sessionKey || sessionKey;
+    // Per-device private voice session (so two phones never cross-talk).
+    let device = null;
+    try { device = new URL(request.url, 'http://x').searchParams.get('device'); } catch {}
+    const voiceBase = config.voice?.sessionKey || sessionKey;
+    const voiceSessionKey = deviceSessionKey(voiceBase, device, 'wv');
+    acceptSessionKey(voiceSessionKey);
 
     let chunkCount = 0;
 
@@ -214,6 +220,9 @@ export function initVoiceStream(httpServer, config = {}) {
                 };
 
                 handler = (payload) => {
+                  console.log(`[VS-DBG] evt sk=${JSON.stringify(payload.sessionKey)} mine=${JSON.stringify(voiceSessionKey)} match=${payload.sessionKey === voiceSessionKey} state=${payload.state}`);
+                  // Only react to this device's own voice session.
+                  if (payload.sessionKey && payload.sessionKey !== voiceSessionKey) return;
                   const text = (() => {
                     if (!payload.message?.content) return '';
                     const c = payload.message.content;
