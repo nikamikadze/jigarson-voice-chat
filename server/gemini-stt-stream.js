@@ -27,6 +27,14 @@ const LANG_MAP = {
   french: 'fr-FR', german: 'de-DE', spanish: 'es-ES',
 };
 
+const VAD_SETTINGS = {
+  positiveSpeechThreshold: 0.8,
+  negativeSpeechThreshold: 0.35,
+  minSpeechFrames: 5,
+  preSpeechPadFrames: 10,
+  redemptionFrames: 6,
+};
+
 function quickVoiceCheckReply(text, replyLanguage = '') {
   const t = String(text || '').trim().toLowerCase();
   if (!t) return '';
@@ -38,6 +46,8 @@ function quickVoiceCheckReply(text, replyLanguage = '') {
     'მოვისმინე',
     'ხმა მოდის',
     'ხმა გესმის',
+    'ესმის ჩემი ხმა',
+    'ჩემი ხმა',
     'can you hear',
     'do you hear',
     'hear me',
@@ -51,6 +61,23 @@ function quickVoiceCheckReply(text, replyLanguage = '') {
 
   if (!looksLikeVoiceCheck || looksLikeTask || compact.length > 80) return '';
   return /^english$/i.test(replyLanguage) ? 'Yes, I hear you.' : 'კი, მესმის.';
+}
+
+function localSettingsReply(text, replyLanguage = '') {
+  const t = String(text || '').trim().toLowerCase();
+  if (!t) return '';
+  const mentionsSensitivity = [
+    'მგრძნობელობა',
+    'sensitivity',
+    'სენსიტივ',
+    'vad',
+  ].some((p) => t.includes(p));
+  if (!mentionsSensitivity) return '';
+
+  if (/^english$/i.test(replyLanguage)) {
+    return `Current voice sensitivity: positive ${VAD_SETTINGS.positiveSpeechThreshold}, negative ${VAD_SETTINGS.negativeSpeechThreshold}, min speech frames ${VAD_SETTINGS.minSpeechFrames}, pre-pad ${VAD_SETTINGS.preSpeechPadFrames}, redemption ${VAD_SETTINGS.redemptionFrames}. I did not switch anything.`;
+  }
+  return `არაფერი გადამირთავს. მგრძნობელობა ასე დგას: positive ${VAD_SETTINGS.positiveSpeechThreshold}, negative ${VAD_SETTINGS.negativeSpeechThreshold}, min frames ${VAD_SETTINGS.minSpeechFrames}, pre-pad ${VAD_SETTINGS.preSpeechPadFrames}, redemption ${VAD_SETTINGS.redemptionFrames}.`;
 }
 
 function logStt(obj) {
@@ -343,12 +370,12 @@ export function initGeminiSttStream(httpServer, config = {}) {
       logStt({ ev: 'transcript', text: transcript, sttMs: timing.sttMs });
       try { ws.send(JSON.stringify({ type: 'transcript', text: transcript })); } catch {}
 
-      const quickReply = quickVoiceCheckReply(transcript, replyLanguage);
-      if (quickReply) {
-        console.log(`[PERF] Quick voice-check reply: "${quickReply}" (+${elapsedSinceEnd()})`);
-        try { ws.send(JSON.stringify({ type: 'text-chunk', text: quickReply })); } catch {}
+      const localReply = localSettingsReply(transcript, replyLanguage) || quickVoiceCheckReply(transcript, replyLanguage);
+      if (localReply) {
+        console.log(`[PERF] Local voice reply: "${localReply}" (+${elapsedSinceEnd()})`);
+        try { ws.send(JSON.stringify({ type: 'text-chunk', text: localReply })); } catch {}
         try {
-          const r = await ttsSentence(quickReply);
+          const r = await ttsSentence(localReply);
           if (r && r.buffer && r.buffer.length) {
             if (!timing.firstTokenMs) timing.firstTokenMs = Date.now() - t0;
             if (!timing.firstAudioMs) timing.firstAudioMs = Date.now() - t0;
@@ -356,15 +383,15 @@ export function initGeminiSttStream(httpServer, config = {}) {
               type: 'tts-chunk',
               audio: r.buffer.toString('base64'),
               contentType: r.contentType,
-              text: quickReply,
+              text: localReply,
             }));
           }
           timing.totalMs = Date.now() - t0;
-          logStt({ ev: 'timing', quick: true, ...timing });
-          ws.send(JSON.stringify({ type: 'timing', ...timing, quick: true }));
-          ws.send(JSON.stringify({ type: 'done', fullText: quickReply }));
+          logStt({ ev: 'timing', local: true, ...timing });
+          ws.send(JSON.stringify({ type: 'timing', ...timing, local: true }));
+          ws.send(JSON.stringify({ type: 'done', fullText: localReply }));
         } catch (err) {
-          console.error('[STT-STREAM] Quick reply TTS error:', err.message);
+          console.error('[STT-STREAM] Local reply TTS error:', err.message);
           try { ws.send(JSON.stringify({ type: 'error', message: err.message })); } catch {}
         }
         return;
@@ -436,10 +463,16 @@ export function initGeminiSttStream(httpServer, config = {}) {
             let finished = false;
             let handler;
 
-            const finish = async () => {
+            const finish = async (reason = 'final') => {
               if (finished) return;
               finished = true;
               removeVoiceHandler(handler);
+              if (!fullText.trim() && reason === 'timeout') {
+                fullText = replyLanguage === 'English'
+                  ? 'OpenClaw did not answer in time.'
+                  : 'OpenClaw-მა დროზე არ მიპასუხა.';
+                try { ws.send(JSON.stringify({ type: 'text-chunk', text: fullText })); } catch {}
+              }
               flushSentences(fullText, true);
 
               // Wait for all queued TTS sentences to be synthesized and sent
@@ -488,7 +521,7 @@ export function initGeminiSttStream(httpServer, config = {}) {
             console.log(`[PERF] Sending prompt to gateway... (+${elapsedSinceEnd()})`);
             gwRequest('chat.send', { message: outgoing, sessionKey: voiceSessionKey, idempotencyKey, deliver: false })
               .catch((err) => { removeVoiceHandler(handler); reject(err); });
-            setTimeout(finish, 60000);
+            setTimeout(() => finish('timeout'), 30000);
           });
         } else {
           const userMsg = formatVoicePrompt(transcript, replyLanguage);
