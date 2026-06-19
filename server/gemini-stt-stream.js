@@ -27,6 +27,32 @@ const LANG_MAP = {
   french: 'fr-FR', german: 'de-DE', spanish: 'es-ES',
 };
 
+function quickVoiceCheckReply(text, replyLanguage = '') {
+  const t = String(text || '').trim().toLowerCase();
+  if (!t) return '';
+  const compact = t.replace(/[?!.,:;'"“”„…\s]+/g, ' ');
+  const looksLikeVoiceCheck = [
+    'როგორ გესმის',
+    'გესმის',
+    'მომისმინე',
+    'მოვისმინე',
+    'ხმა მოდის',
+    'ხმა გესმის',
+    'can you hear',
+    'do you hear',
+    'hear me',
+  ].some((p) => compact.includes(p));
+
+  const looksLikeTask = [
+    'მისწერე', 'გაუგზავნე', 'გახსენი', 'ჩართე', 'დახურე', 'შეასრულე',
+    'გააკეთე', 'მოძებნე', 'დააყენე', 'შეცვალე', 'გაუშვი', 'run ', 'open ',
+    'send ', 'message ', 'task',
+  ].some((p) => compact.includes(p));
+
+  if (!looksLikeVoiceCheck || looksLikeTask || compact.length > 80) return '';
+  return /^english$/i.test(replyLanguage) ? 'Yes, I hear you.' : 'კი, მესმის.';
+}
+
 function logStt(obj) {
   appendFile(path.join(process.cwd(), 'voice-stt.log'),
     JSON.stringify({ ts: new Date().toISOString(), ...obj }) + '\n').catch(() => {});
@@ -316,6 +342,33 @@ export function initGeminiSttStream(httpServer, config = {}) {
       console.log(`[STT-STREAM] Transcript: "${transcript}"`);
       logStt({ ev: 'transcript', text: transcript, sttMs: timing.sttMs });
       try { ws.send(JSON.stringify({ type: 'transcript', text: transcript })); } catch {}
+
+      const quickReply = quickVoiceCheckReply(transcript, replyLanguage);
+      if (quickReply) {
+        console.log(`[PERF] Quick voice-check reply: "${quickReply}" (+${elapsedSinceEnd()})`);
+        try { ws.send(JSON.stringify({ type: 'text-chunk', text: quickReply })); } catch {}
+        try {
+          const r = await ttsSentence(quickReply);
+          if (r && r.buffer && r.buffer.length) {
+            if (!timing.firstTokenMs) timing.firstTokenMs = Date.now() - t0;
+            if (!timing.firstAudioMs) timing.firstAudioMs = Date.now() - t0;
+            ws.send(JSON.stringify({
+              type: 'tts-chunk',
+              audio: r.buffer.toString('base64'),
+              contentType: r.contentType,
+              text: quickReply,
+            }));
+          }
+          timing.totalMs = Date.now() - t0;
+          logStt({ ev: 'timing', quick: true, ...timing });
+          ws.send(JSON.stringify({ type: 'timing', ...timing, quick: true }));
+          ws.send(JSON.stringify({ type: 'done', fullText: quickReply }));
+        } catch (err) {
+          console.error('[STT-STREAM] Quick reply TTS error:', err.message);
+          try { ws.send(JSON.stringify({ type: 'error', message: err.message })); } catch {}
+        }
+        return;
+      }
 
       const idempotencyKey = `voice-stt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const brain = getActiveBrain();
