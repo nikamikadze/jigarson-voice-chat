@@ -71,8 +71,32 @@ function localSettingsReply(text, replyLanguage = '') {
     'sensitivity',
     'სენსიტივ',
     'vad',
+    'positive',
+    'პოზიტივ',
+    'negative',
+    'ნეგატივ',
+    'min frame',
+    'მინ ფრეიმ',
+    'redemption',
+    'pre-pad',
   ].some((p) => t.includes(p));
   if (!mentionsSensitivity) return '';
+
+  const asksMeaning = [
+    'რას ნიშნავს',
+    'რა არის',
+    'ვერ გავიგე',
+    'explain',
+    'meaning',
+    'means',
+  ].some((p) => t.includes(p));
+
+  if (asksMeaning) {
+    if (/^english$/i.test(replyLanguage)) {
+      return 'Those are voice detection settings. Positive means how sure it must be before speech starts. Negative means how sure silence must be before speech stops. Min frames is how many speech frames it needs before trusting that you started talking. Pre-pad keeps a tiny bit before speech so the first syllable is not cut. Redemption frames waits through a short pause before ending the turn.';
+    }
+    return 'ეგენი ხმის ამოცნობის პარამეტრებია. Positive ნიშნავს რამდენად დარწმუნდეს, რომ ლაპარაკი დაიწყო. Negative ნიშნავს რამდენად დარწმუნდეს, რომ გაჩერდი. Min frames არის რამდენი ხმის ფრემი უნდა დაგროვდეს, რომ საუბარი ნამდვილი ჩათვალოს. Pre-pad დასაწყისს არ აჭრის. Redemption კი პაუზას ცოტა ელოდება, რომ წინადადება შუაში არ გაწყვიტოს.';
+  }
 
   if (/^english$/i.test(replyLanguage)) {
     return `Current voice sensitivity: positive ${VAD_SETTINGS.positiveSpeechThreshold}, negative ${VAD_SETTINGS.negativeSpeechThreshold}, min speech frames ${VAD_SETTINGS.minSpeechFrames}, pre-pad ${VAD_SETTINGS.preSpeechPadFrames}, redemption ${VAD_SETTINGS.redemptionFrames}. I did not switch anything.`;
