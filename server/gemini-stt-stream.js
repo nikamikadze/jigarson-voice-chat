@@ -13,6 +13,7 @@ import { addVoiceHandler, removeVoiceHandler } from './sse.js';
 import { deviceSessionKey } from './session-key.js';
 import { ttsSentence } from './tts.js';
 import { brainChat, getActiveBrain } from './brain.js';
+import { formatVoicePrompt } from './assistant-guidelines.js';
 
 const GEMINI_LIVE_URL = (key) =>
   `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${key}`;
@@ -419,10 +420,7 @@ export function initGeminiSttStream(httpServer, config = {}) {
             };
 
             addVoiceHandler(handler);
-            const brevity = 'Reply in short, natural spoken sentences. Lead with the key point first. No markdown, lists, emojis, generic follow-up offers, readiness talk, or repeated tell-me-what-to-do endings. Ask one clarifying question only if necessary.';
-            const outgoing = replyLanguage
-              ? `${transcript}\n\n(${brevity} Reply only in ${replyLanguage}.)`
-              : `${transcript}\n\n(${brevity})`;
+            const outgoing = formatVoicePrompt(transcript, replyLanguage);
             
             console.log(`[PERF] Sending prompt to gateway... (+${elapsedSinceEnd()})`);
             gwRequest('chat.send', { message: outgoing, sessionKey: voiceSessionKey, idempotencyKey, deliver: false })
@@ -430,10 +428,7 @@ export function initGeminiSttStream(httpServer, config = {}) {
             setTimeout(finish, 60000);
           });
         } else {
-          const brevity = 'Reply in short, natural spoken sentences. Lead with the key point first. No markdown, lists, emojis, generic follow-up offers, readiness talk, or repeated tell-me-what-to-do endings. Ask one clarifying question only if necessary.';
-          const userMsg = replyLanguage
-            ? `${transcript}\n\n(${brevity} Reply only in ${replyLanguage}.)`
-            : `${transcript}\n\n(${brevity})`;
+          const userMsg = formatVoicePrompt(transcript, replyLanguage);
           let fullText = '';
           
           console.log(`[PERF] Sending prompt to direct brain (${brain})... (+${elapsedSinceEnd()})`);

@@ -7,11 +7,11 @@ import path from 'path';
 import { copyFile, unlink, mkdir } from 'fs/promises';
 import { gwRequest, acceptSessionKey } from '../gateway.js';
 import { deviceSessionKey } from '../session-key.js';
+import { formatTextPrompt } from '../assistant-guidelines.js';
 
 const router = Router();
 const fileUpload = multer({ dest: os.tmpdir(), limits: { fileSize: 20 * 1024 * 1024 } });
 const MEDIA_INBOUND = path.join(os.homedir(), '.openclaw', 'media', 'inbound');
-const REPLY_GUARD = 'Answer directly. Do not add generic follow-up offers, readiness talk, or repeated "tell me what to do" endings. Ask one clarifying question only if the task cannot be answered without it.';
 
 let msgCountToday = 0;
 let msgCountDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
@@ -51,7 +51,7 @@ router.post('/chat/upload', fileUpload.array('files', 10), async (req, res) => {
 
     bumpMsgCount();
     const idempotencyKey = `jarvis-upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const guardedMessage = `${fullMessage}\n\n(${REPLY_GUARD})`;
+    const guardedMessage = formatTextPrompt(fullMessage);
     const sessionKey = deviceSessionKey(req.app.locals.sessionKey, req.body.device, 'web');
     acceptSessionKey(sessionKey);
     const result = await gwRequest('chat.send', {
@@ -75,7 +75,7 @@ router.post('/chat', async (req, res) => {
     const sessionKey = deviceSessionKey(req.app.locals.sessionKey, req.body.device, 'web');
     acceptSessionKey(sessionKey);
     const result = await gwRequest('chat.send', {
-      message: `${message}\n\n(${REPLY_GUARD})`, sessionKey,
+      message: formatTextPrompt(message), sessionKey,
       idempotencyKey, deliver: false,
     });
     res.json({ ok: true, ...result });

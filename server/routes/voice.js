@@ -11,6 +11,7 @@ import { addVoiceHandler, removeVoiceHandler } from '../sse.js';
 import { ttsSentence } from '../tts.js';
 import { transcribe } from '../stt.js';
 import { brainChat, getActiveBrain } from '../brain.js';
+import { formatVoicePrompt } from '../assistant-guidelines.js';
 
 const router = Router();
 const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -156,10 +157,7 @@ router.post('/voice', upload.single('audio'), async (req, res) => {
 
         addVoiceHandler(handler);
 
-        const brevity = 'Reply in short, natural spoken sentences. Lead with the key point first. No markdown, lists, emojis, generic follow-up offers, readiness talk, or repeated tell-me-what-to-do endings. Ask one clarifying question only if necessary.';
-        const outgoing = replyLang
-          ? `${transcript}\n\n(${brevity} Reply only in ${replyLang}.)`
-          : `${transcript}\n\n(${brevity})`;
+        const outgoing = formatVoicePrompt(transcript, replyLang);
 
         gwRequest('chat.send', {
           message: outgoing, sessionKey: req.app.locals.voiceSessionKey || req.app.locals.sessionKey,
@@ -171,10 +169,7 @@ router.post('/voice', upload.single('audio'), async (req, res) => {
 
     } else {
       // ── Direct brain path (openai / deepseek) ───────────────────────────────
-      const brevity = 'Reply in short, natural spoken sentences. Lead with the key point first. No markdown, lists, emojis, generic follow-up offers, readiness talk, or repeated tell-me-what-to-do endings. Ask one clarifying question only if necessary.';
-      const userMsg = replyLang
-        ? `${transcript}\n\n(${brevity} Reply only in ${replyLang}.)`
-        : `${transcript}\n\n(${brevity})`;
+      const userMsg = formatVoicePrompt(transcript, replyLang);
 
       let fullText = '';
       responseText = await brainChat({

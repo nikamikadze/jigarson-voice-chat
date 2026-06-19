@@ -10,6 +10,7 @@ import { ttsSentence } from './tts.js';
 import { transcribe } from './stt.js';
 import { deviceSessionKey } from './session-key.js';
 import { brainChat, getActiveBrain } from './brain.js';
+import { formatVoicePrompt } from './assistant-guidelines.js';
 
 function logVoice(obj) {
   appendFile(path.join(process.cwd(), 'voice-debug.log'),
@@ -247,10 +248,7 @@ export function initVoiceStream(httpServer, config = {}) {
 
                 addVoiceHandler(handler);
 
-                const brevity = 'Reply in short, natural spoken sentences. Lead with the key point first. No markdown, lists, emojis, generic follow-up offers, readiness talk, or repeated tell-me-what-to-do endings. Ask one clarifying question only if necessary.';
-                const outgoing = replyLanguage
-                  ? `${transcript}\n\n(${brevity} Reply only in ${replyLanguage}.)`
-                  : `${transcript}\n\n(${brevity})`;
+                const outgoing = formatVoicePrompt(transcript, replyLanguage);
 
                 gwRequest('chat.send', {
                   message: outgoing,
@@ -266,10 +264,7 @@ export function initVoiceStream(httpServer, config = {}) {
               });
             } else {
               // Direct brain path
-              const brevity = 'Reply in short, natural spoken sentences. Lead with the key point first. No markdown, lists, emojis, generic follow-up offers, readiness talk, or repeated tell-me-what-to-do endings. Ask one clarifying question only if necessary.';
-              const userMsg = replyLanguage
-                ? `${transcript}\n\n(${brevity} Reply only in ${replyLanguage}.)`
-                : `${transcript}\n\n(${brevity})`;
+              const userMsg = formatVoicePrompt(transcript, replyLanguage);
 
               let fullText = '';
               responseText = await brainChat({

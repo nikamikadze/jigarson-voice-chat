@@ -12,6 +12,7 @@ import { deviceSessionKey } from './session-key.js';
 import { ttsSentence } from './tts.js';
 import { brainChat, getActiveBrain } from './brain.js';
 import { googleSttAvailable, normalizeLanguage } from './stt.js';
+import { formatVoicePrompt } from './assistant-guidelines.js';
 
 function logStt(obj) {
   appendFile(path.join(process.cwd(), 'voice-stt.log'),
@@ -250,10 +251,7 @@ export function initGoogleSttStream(httpServer, config = {}) {
 
       try {
         let responseText = '';
-        const brevity = 'Reply in short, natural spoken sentences. Lead with the key point first. No markdown, lists, emojis, generic follow-up offers, readiness talk, or repeated tell-me-what-to-do endings. Ask one clarifying question only if necessary.';
-        const outgoing = replyLanguage
-          ? `${transcript}\n\n(${brevity} Reply only in ${replyLanguage}.)`
-          : `${transcript}\n\n(${brevity})`;
+        const outgoing = formatVoicePrompt(transcript, replyLanguage);
 
         if (brain === 'openclaw') {
           responseText = await new Promise((resolve, reject) => {

@@ -6,10 +6,10 @@ import { openaiAvailable, openaiChatStream, openaiChatModel } from './openai.js'
 import { deepseekAvailable, deepseekChatStream, deepseekModel } from './deepseek.js';
 import { geminiAvailable, geminiChatStream, geminiChatModel } from './gemini.js';
 import { buildMemorySystem } from './memory-brain.js';
+import { JARVIS_RESPONSE_GUIDELINES } from './assistant-guidelines.js';
 
 // Default system prompt — applied only for direct (non-gateway) brains.
-const DEFAULT_SYSTEM = process.env.JARVIS_SYSTEM ||
-  'You are JARVIS, a highly capable personal AI assistant. Be concise, clear, and helpful. Speak naturally.';
+const DEFAULT_SYSTEM = JARVIS_RESPONSE_GUIDELINES;
 
 const BRAINS = {
   gemini: {
