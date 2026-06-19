@@ -1,7 +1,4 @@
-import speech from '@google-cloud/speech';
-import { existsSync } from 'fs';
-import os from 'os';
-import path from 'path';
+import { geminiTranscribe, geminiAvailable } from './gemini.js';
 
 const LANGUAGE_CODES = {
   georgian: 'ka-GE',
@@ -14,46 +11,35 @@ const LANGUAGE_CODES = {
   ru: 'ru-RU',
 };
 
-let languageCode = process.env.GOOGLE_CLOUD_STT_LANGUAGE || 'ka-GE';
-let client = null;
-
-export function googleSttAvailable() {
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS && existsSync(process.env.GOOGLE_APPLICATION_CREDENTIALS)) return true;
-  if (process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT) return true;
-  return existsSync(path.join(os.homedir(), '.config', 'gcloud', 'application_default_credentials.json'));
-}
-
-function getClient() {
-  if (!client) client = new speech.SpeechClient();
-  return client;
-}
+let geminiSttModel = process.env.GEMINI_STT_MODEL || 'gemini-3.5-flash';
 
 export function normalizeLanguage(language) {
-  const value = String(language || languageCode || '').trim();
+  const value = String(language || '').trim();
   if (!value) return 'ka-GE';
   return LANGUAGE_CODES[value.toLowerCase()] || value;
 }
 
 export function initSTT(cfg = {}) {
-  languageCode = normalizeLanguage(
-    process.env.GOOGLE_CLOUD_STT_LANGUAGE || cfg.language || cfg.languageCode || languageCode,
-  );
+  geminiSttModel = process.env.GEMINI_STT_MODEL || cfg.geminiModel || geminiSttModel;
+  if (!geminiAvailable()) {
+    console.warn('[STT] GEMINI_API_KEY not set — Gemini STT will fail until it is configured.');
+  }
 }
 
 export function getSttEngines() {
   return {
-    current: 'google',
+    current: 'gemini-live',
     engines: [{
-      id: 'google',
-      name: 'Google Cloud Speech-to-Text',
-      available: googleSttAvailable(),
+      id: 'gemini-live',
+      name: 'Gemini Live streaming STT',
+      available: geminiAvailable(),
       selected: true,
     }],
   };
 }
 
 export function setSttEngine() {
-  return 'google';
+  return 'gemini-live';
 }
 
 function withTimeout(promise, ms, label) {
@@ -64,23 +50,14 @@ function withTimeout(promise, ms, label) {
 }
 
 export async function transcribe({ buffer, language, mimeType } = {}) {
-  const encoding = mimeType?.includes('webm') ? 'WEBM_OPUS' : 'LINEAR16';
-  const request = {
-    audio: { content: buffer.toString('base64') },
-    config: {
-      encoding,
-      sampleRateHertz: encoding === 'LINEAR16' ? 16000 : undefined,
-      languageCode: normalizeLanguage(language),
-      enableAutomaticPunctuation: true,
-      useEnhanced: true,
-      model: 'latest_short',
-    },
-  };
-
-  const [response] = await withTimeout(getClient().recognize(request), 12000, 'google-stt');
-  const text = (response.results || [])
-    .map((result) => result.alternatives?.[0]?.transcript || '')
-    .join(' ')
-    .trim();
-  return { text, engine: 'google' };
+  const text = await withTimeout(
+    geminiTranscribe(buffer, {
+      mimeType: mimeType || 'audio/wav',
+      model: geminiSttModel,
+      language: normalizeLanguage(language),
+    }),
+    12000,
+    'gemini-stt',
+  );
+  return { text: (text || '').trim(), engine: 'gemini-live' };
 }

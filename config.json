@@ -26,11 +26,12 @@
   "voice": {
     "sttLanguage": "Georgian",
     "replyLanguage": "Georgian",
-    "sessionKey": "agent:main:main"
+    "sessionKey": "agent:main:main",
+    "sttModel": "gemini-3.1-flash-live-preview"
   },
   "stt": {
-    "engine": "google",
-    "languageCode": "ka-GE"
+    "engine": "gemini-live",
+    "geminiModel": "gemini-3.5-flash"
   },
   "usage": {
     "dailyBudget": 5,

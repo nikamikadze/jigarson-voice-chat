@@ -302,8 +302,8 @@ export async function startVoiceMode() {
 
     // 4) Open WebSocket to the STT backend.
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    // /api/voice-stt streams PCM16 to Google Cloud Speech-to-Text while the
-    // user speaks, so we are not waiting on a post-speech upload/transcribe step.
+    // /api/voice-stt streams PCM16 to Gemini Live for transcription only.
+    // The answer model and Cartesia TTS remain separate downstream stages.
     ws = new WebSocket(`${proto}://${location.host}/api/voice-stt?device=${encodeURIComponent(getDeviceId())}`);
     ws.onmessage = (e) => handleWsMsg(e.data);
 

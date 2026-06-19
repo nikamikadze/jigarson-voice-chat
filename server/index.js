@@ -13,7 +13,7 @@ import { initTTS } from './tts.js';
 import { startSystemMonitor } from './system-monitor.js';
 import { initLiveProxy } from './gemini-live.js';
 import { initVoiceStream } from './voice-stream.js';
-import { initGoogleSttStream } from './google-stt-stream.js';
+import { initGeminiSttStream } from './gemini-stt-stream.js';
 
 // Routes
 import chatRoutes from './routes/chat.js';
@@ -162,8 +162,8 @@ const liveWss = initLiveProxy(server, {
 // Voice streaming proxy (WebSocket at /api/voice-stream)
 const voiceWss = initVoiceStream(server, config);
 
-// Google Cloud streaming STT proxy (WebSocket at /api/voice-stt)
-const sttWss = initGoogleSttStream(server, config);
+// Gemini Live streaming STT proxy (WebSocket at /api/voice-stt)
+const sttWss = initGeminiSttStream(server, config);
 
 server.on('upgrade', (request, socket, head) => {
   const pathname = request.url.split('?')[0];
