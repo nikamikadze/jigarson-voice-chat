@@ -35,10 +35,22 @@ const VAD_SETTINGS = {
   redemptionFrames: 6,
 };
 
+function normalizeSpeechText(text) {
+  return String(text || '').trim().toLowerCase().replace(/[?!.,:;'"“”„…\s]+/g, ' ');
+}
+
+function looksLikeTask(text) {
+  const compact = normalizeSpeechText(text);
+  return [
+    'მისწერე', 'გაუგზავნე', 'გახსენი', 'ჩართე', 'დახურე', 'შეასრულე',
+    'გააკეთე', 'მოძებნე', 'დააყენე', 'შეცვალე', 'გაუშვი', 'გადატვირთე',
+    'run ', 'open ', 'send ', 'message ', 'task', 'restart', 'deploy',
+  ].some((p) => compact.includes(p));
+}
+
 function quickVoiceCheckReply(text, replyLanguage = '') {
-  const t = String(text || '').trim().toLowerCase();
-  if (!t) return '';
-  const compact = t.replace(/[?!.,:;'"“”„…\s]+/g, ' ');
+  const compact = normalizeSpeechText(text);
+  if (!compact) return '';
   const looksLikeVoiceCheck = [
     'როგორ გესმის',
     'გესმის',
@@ -53,13 +65,7 @@ function quickVoiceCheckReply(text, replyLanguage = '') {
     'hear me',
   ].some((p) => compact.includes(p));
 
-  const looksLikeTask = [
-    'მისწერე', 'გაუგზავნე', 'გახსენი', 'ჩართე', 'დახურე', 'შეასრულე',
-    'გააკეთე', 'მოძებნე', 'დააყენე', 'შეცვალე', 'გაუშვი', 'run ', 'open ',
-    'send ', 'message ', 'task',
-  ].some((p) => compact.includes(p));
-
-  if (!looksLikeVoiceCheck || looksLikeTask || compact.length > 80) return '';
+  if (!looksLikeVoiceCheck || looksLikeTask(compact) || compact.length > 80) return '';
   return /^english$/i.test(replyLanguage) ? 'Yes, I hear you.' : 'კი, მესმის.';
 }
 
@@ -93,15 +99,59 @@ function localSettingsReply(text, replyLanguage = '') {
 
   if (asksMeaning) {
     if (/^english$/i.test(replyLanguage)) {
-      return 'Those are voice detection settings. Positive means how sure it must be before speech starts. Negative means how sure silence must be before speech stops. Min frames is how many speech frames it needs before trusting that you started talking. Pre-pad keeps a tiny bit before speech so the first syllable is not cut. Redemption frames waits through a short pause before ending the turn.';
+      return 'Those are VAD settings. Positive starts speech detection. Negative stops it. Min frames prevents tiny noises. Pre-pad keeps the first syllable. Redemption waits through short pauses.';
     }
-    return 'ეგენი ხმის ამოცნობის პარამეტრებია. Positive ნიშნავს რამდენად დარწმუნდეს, რომ ლაპარაკი დაიწყო. Negative ნიშნავს რამდენად დარწმუნდეს, რომ გაჩერდი. Min frames არის რამდენი ხმის ფრემი უნდა დაგროვდეს, რომ საუბარი ნამდვილი ჩათვალოს. Pre-pad დასაწყისს არ აჭრის. Redemption კი პაუზას ცოტა ელოდება, რომ წინადადება შუაში არ გაწყვიტოს.';
+    return 'ეგ VAD-ის პარამეტრებია. Positive ლაპარაკის დაწყებას იჭერს. Negative გაჩერებას. Min frames პატარა ხმაურს ფილტრავს. Pre-pad პირველ მარცვალს არ ჭრის. Redemption მოკლე პაუზაზე არ აჩერებს.';
   }
 
   if (/^english$/i.test(replyLanguage)) {
-    return `Current voice sensitivity: positive ${VAD_SETTINGS.positiveSpeechThreshold}, negative ${VAD_SETTINGS.negativeSpeechThreshold}, min speech frames ${VAD_SETTINGS.minSpeechFrames}, pre-pad ${VAD_SETTINGS.preSpeechPadFrames}, redemption ${VAD_SETTINGS.redemptionFrames}. I did not switch anything.`;
+    return `VAD: positive ${VAD_SETTINGS.positiveSpeechThreshold}, negative ${VAD_SETTINGS.negativeSpeechThreshold}, min ${VAD_SETTINGS.minSpeechFrames}, pre-pad ${VAD_SETTINGS.preSpeechPadFrames}, redemption ${VAD_SETTINGS.redemptionFrames}. Nothing switched.`;
   }
-  return `არაფერი გადამირთავს. მგრძნობელობა ასე დგას: positive ${VAD_SETTINGS.positiveSpeechThreshold}, negative ${VAD_SETTINGS.negativeSpeechThreshold}, min frames ${VAD_SETTINGS.minSpeechFrames}, pre-pad ${VAD_SETTINGS.preSpeechPadFrames}, redemption ${VAD_SETTINGS.redemptionFrames}.`;
+  return `არაფერი გადამირთავს. VAD ასე დგას: positive ${VAD_SETTINGS.positiveSpeechThreshold}, negative ${VAD_SETTINGS.negativeSpeechThreshold}, min ${VAD_SETTINGS.minSpeechFrames}, pre-pad ${VAD_SETTINGS.preSpeechPadFrames}, redemption ${VAD_SETTINGS.redemptionFrames}.`;
+}
+
+function localStatusReply(text, replyLanguage = '') {
+  const compact = normalizeSpeechText(text);
+  if (!compact || looksLikeTask(compact)) return '';
+
+  const asksAnswer = [
+    'გამეცი პასუხი',
+    'პასუხი გამეცი',
+    'შეგიძლია გამცე პასუხი',
+    'მიპასუხე',
+    'answer me',
+  ].some((p) => compact.includes(p));
+  if (asksAnswer && compact.length < 80) {
+    return /^english$/i.test(replyLanguage) ? 'Yes. I am here.' : 'კი, აქ ვარ.';
+  }
+
+  const asksOpenClaw = [
+    'openclaw ხარ',
+    'open claw ხარ',
+    'open cloud ხარ',
+    'ოპენქლოუ ხარ',
+    'ოპენ კლოუ ხარ',
+  ].some((p) => compact.includes(p));
+  if (asksOpenClaw) {
+    return /^english$/i.test(replyLanguage)
+      ? 'Yes. The brain path is OpenClaw; STT is Gemini Live.'
+      : 'კი. ტვინი OpenClaw-ზეა, STT კი Gemini Live-ზე.';
+  }
+
+  const asksModel = [
+    'რომელ მოდელს',
+    'რა მოდელს',
+    'რას იყენებ',
+    'which model',
+    'what model',
+  ].some((p) => compact.includes(p));
+  if (asksModel && compact.length < 120) {
+    return /^english$/i.test(replyLanguage)
+      ? 'Brain: OpenClaw. STT: Gemini Live. TTS: Cartesia.'
+      : 'ტვინი OpenClaw-ია. STT Gemini Live. ხმა Cartesia.';
+  }
+
+  return '';
 }
 
 function logStt(obj) {
@@ -394,7 +444,9 @@ export function initGeminiSttStream(httpServer, config = {}) {
       logStt({ ev: 'transcript', text: transcript, sttMs: timing.sttMs });
       try { ws.send(JSON.stringify({ type: 'transcript', text: transcript })); } catch {}
 
-      const localReply = localSettingsReply(transcript, replyLanguage) || quickVoiceCheckReply(transcript, replyLanguage);
+      const localReply = localSettingsReply(transcript, replyLanguage)
+        || quickVoiceCheckReply(transcript, replyLanguage)
+        || localStatusReply(transcript, replyLanguage);
       if (localReply) {
         console.log(`[PERF] Local voice reply: "${localReply}" (+${elapsedSinceEnd()})`);
         try { ws.send(JSON.stringify({ type: 'text-chunk', text: localReply })); } catch {}
