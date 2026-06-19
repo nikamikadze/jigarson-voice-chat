@@ -60,6 +60,7 @@ export function initGeminiSttStream(httpServer, config = {}) {
     // ── State ──
     let state = 'idle'; // idle | recording | processing | done
     let partialTranscript = '';
+    let turnAudioBytes = 0;
     let t0 = 0;
     const timing = { sttMs: 0, firstTokenMs: 0, firstAudioMs: 0, totalMs: 0 };
 
@@ -85,6 +86,9 @@ export function initGeminiSttStream(httpServer, config = {}) {
             generationConfig: {
               responseModalities: ['AUDIO'],
               speechConfig: { languageCode: sttLanguage },
+            },
+            realtimeInputConfig: {
+              automaticActivityDetection: { disabled: true },
             },
             // Request streaming transcription of user audio input.
             // These arrive as serverContent.inputTranscription regardless of response modality.
@@ -113,6 +117,7 @@ export function initGeminiSttStream(httpServer, config = {}) {
         if ('setupComplete' in msg) {
           geminiReady = true;
           console.log(`[STT-STREAM] Gemini ready, flushing ${pendingChunks.length} pending chunks`);
+          if (state === 'recording') sendActivityStart();
           for (const chunk of pendingChunks) _sendAudioChunk(chunk);
           pendingChunks = [];
           try { ws.send(JSON.stringify({ type: 'stt-ready' })); } catch {}
@@ -134,18 +139,8 @@ export function initGeminiSttStream(httpServer, config = {}) {
           logStt({ ev: 'transcript-event', text: inTrans, ms: elapsed });
           try { ws.send(JSON.stringify({ type: 'partial', text: inTrans })); } catch {}
 
-          // Early pipeline: mid-speech partial contains a complete sentence — don't wait for speech end
-          const hasSentenceEnd = /[.!?।।\n]/.test(inTrans);
-          if (state === 'recording' && hasSentenceEnd && inTrans.trim().length >= 8) {
-            console.log(`[STT-STREAM] Mid-speech sentence complete — firing pipeline early (+${elapsed}ms)`);
-            state = 'processing';
-            timing.sttMs = elapsed;
-            try { upstream.close(); } catch {}
-            await runBrainPipeline(inTrans);
-            return;
-          }
-
-          // Post-speech: fire immediately on first transcript event (don't wait for turnComplete)
+          // Post-speech: fire immediately on first transcript event after browser VAD ends.
+          // Do not fire mid-speech; task commands are often multi-clause and get cut off.
           if (state === 'processing') {
             timing.sttMs = elapsed;
             try { upstream.close(); } catch {}
@@ -194,6 +189,20 @@ export function initGeminiSttStream(httpServer, config = {}) {
       }));
     }
 
+    function sendActivityStart() {
+      if (!upstream || upstream.readyState !== WebSocket.OPEN || !geminiReady) return false;
+      upstream.send(JSON.stringify({ realtimeInput: { activityStart: {} } }));
+      console.log('[STT-STREAM] Sent activityStart to Gemini');
+      return true;
+    }
+
+    function sendActivityEnd() {
+      if (!upstream || upstream.readyState !== WebSocket.OPEN || !geminiReady) return false;
+      upstream.send(JSON.stringify({ realtimeInput: { activityEnd: {} } }));
+      console.log('[STT-STREAM] Sent activityEnd to Gemini');
+      return true;
+    }
+
     // ── Browser → server messages ──
     ws.on('message', async (rawData, isBinary) => {
       const isMsgBinary = (isBinary === true) || (Buffer.isBuffer(rawData) && rawData[0] !== 123);
@@ -201,6 +210,7 @@ export function initGeminiSttStream(httpServer, config = {}) {
       if (isMsgBinary) {
         if (state !== 'recording') return;
         const chunk = Buffer.from(rawData);
+        turnAudioBytes += chunk.length;
         if (geminiReady) {
           _sendAudioChunk(chunk);
         } else {
@@ -219,6 +229,7 @@ export function initGeminiSttStream(httpServer, config = {}) {
         console.log('[STT-STREAM] Recording started');
         state = 'recording';
         partialTranscript = '';
+        turnAudioBytes = 0;
         t0 = Date.now();
         timing.sttMs = 0; timing.firstTokenMs = 0; timing.firstAudioMs = 0; timing.totalMs = 0;
         if (msg.language) sttLanguage = LANG_MAP[msg.language.toLowerCase()] || msg.language;
@@ -230,13 +241,14 @@ export function initGeminiSttStream(httpServer, config = {}) {
           console.log('[STT-STREAM] Reopening Gemini upstream for new turn');
           openGeminiUpstream();
         }
+        sendActivityStart();
 
       } else if (msg.type === 'end') {
         if (state !== 'recording') return;
         state = 'processing';
         const elapsed = Date.now() - t0;
-        console.log(`[STT-STREAM] Speech ended after ${elapsed}ms, partialSoFar="${partialTranscript}"`);
-        logStt({ ev: 'end', ms: elapsed, partialSoFar: partialTranscript });
+        console.log(`[STT-STREAM] Speech ended after ${elapsed}ms, audioBytes=${turnAudioBytes}, partialSoFar="${partialTranscript}"`);
+        logStt({ ev: 'end', ms: elapsed, audioBytes: turnAudioBytes, partialSoFar: partialTranscript });
 
         // If we already have the transcript (arrived live during speech), run the pipeline immediately
         if (partialTranscript && partialTranscript.trim()) {
@@ -246,12 +258,10 @@ export function initGeminiSttStream(httpServer, config = {}) {
           return;
         }
 
-        // Signal Gemini that the user's turn is done → triggers final inputTranscription + turnComplete
-        if (upstream && upstream.readyState === WebSocket.OPEN) {
-          upstream.send(JSON.stringify({
-            clientContent: { turns: [], turnComplete: true },
-          }));
-          console.log('[STT-STREAM] Sent turnComplete to Gemini');
+        // Signal Gemini that the audio activity ended. We use realtimeInput
+        // activity boundaries because browser VAD owns turn detection here.
+        if (sendActivityEnd()) {
+          // ok
         } else {
           console.warn('[STT-STREAM] Gemini upstream not open at end — using partial or fallback STT');
         }

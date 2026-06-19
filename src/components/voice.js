@@ -86,7 +86,7 @@ async function initVAD() {
     negativeSpeechThreshold: 0.35,
     minSpeechFrames: 5,
     preSpeechPadFrames: 10,
-    redemptionFrames: 2,   // ~192ms silence triggers sentence end (was 5/~480ms)
+    redemptionFrames: 6,   // ~576ms silence preserves natural pauses in task commands
 
     onSpeechStart: () => {
       dbg('voice.speechStart');
