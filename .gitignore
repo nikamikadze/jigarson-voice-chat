@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+config.local.json
+tasks.json
+client-debug.log
+*.log
+__pycache__/
+*.pyc

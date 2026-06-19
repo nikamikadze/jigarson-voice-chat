@@ -1,0 +1,42 @@
+{
+  "name": "JARVIS",
+  "agent": {
+    "name": "JARVIS",
+    "emoji": "🤖",
+    "sessionKey": "agent:main:main",
+    "skills": []
+  },
+  "server": {
+    "port": 9787,
+    "gatewayUrl": "ws://127.0.0.1:18789"
+  },
+  "tts": {
+    "voice": "Samantha",
+    "maxChars": 500,
+    "engine": "cartesia",
+    "cartesiaVoice": "a167e0f3-df7e-4d52-a9c3-f949145efdab",
+    "cartesiaLanguage": "ka",
+    "cartesiaModel": "sonic-3.5",
+    "edgeFallbackVoice": "ka-GE-GiorgiNeural",
+    "geminiVoice": "Aoede",
+    "geminiModel": "gemini-3.1-flash-tts-preview",
+    "edgeVoice": "en-US-AriaNeural",
+    "edgeVoiceAlt": "zh-TW-HsiaoChenNeural"
+  },
+  "voice": {
+    "sttLanguage": "Georgian",
+    "replyLanguage": "Georgian",
+    "sessionKey": "agent:main:main"
+  },
+  "stt": {
+    "engine": "gemini"
+  },
+  "usage": {
+    "dailyBudget": 5,
+    "monthlyBudget": 60
+  },
+  "theme": {
+    "accentPrimary": "#ff4e42",
+    "accentSecondary": "#c0392b"
+  }
+}
