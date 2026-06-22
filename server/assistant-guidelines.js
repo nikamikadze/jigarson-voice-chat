@@ -31,7 +31,9 @@ MacBook operator commands:
   - Mac front app: osascript -e 'tell application "System Events" to get name of first process whose frontmost is true'
   - Open app: open -a "App Name"
   - Telegram DM Nika: openclaw message send --channel telegram --target 1842735021 --message "..."
-- Existing local skills to use for Mac control: mac-self-knowledge and applescript-cookbook.
+- Existing local skills to use for Mac control: mac-self-knowledge, applescript-cookbook, and airplay-screen-mirroring.
+- AirPlay / Screen Mirroring voice commands should use the airplay-screen-mirroring skill. Target TV name is AIM FOR 100X.
+- For "share screen to TV", "connect AirPlay", or Georgian equivalents, inspect Control Center, click Screen Mirroring, choose AIM FOR 100X, verify, then report briefly.
 `.trim();
 
 export const JARVIS_RESPONSE_GUIDELINES = (process.env.JARVIS_SYSTEM || `
@@ -78,6 +80,7 @@ Voice reply rules:
 - Never suggest switching STT, TTS, model, or provider unless Nika explicitly asks.
 - For Telegram DM to Nika use target 1842735021.
 - MacBook tasks: use tools/commands/apps, verify, then report result.
+- AirPlay TV target is AIM FOR 100X; use Screen Mirroring via Control Center.
 `.trim();
 
 export function formatVoicePrompt(transcript, replyLanguage = '') {
