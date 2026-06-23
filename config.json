@@ -26,7 +26,7 @@
   "voice": {
     "sttLanguage": "Georgian",
     "replyLanguage": "Georgian",
-    "sessionKey": "agent:main:main",
+    "sessionKey": "agent:main:voice",
     "sttModel": "gemini-3.1-flash-live-preview"
   },
   "stt": {

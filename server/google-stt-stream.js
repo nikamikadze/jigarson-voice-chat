@@ -234,19 +234,26 @@ export function initGoogleSttStream(httpServer, config = {}) {
       };
 
       const flushSentences = (fullText, force) => {
-        const pending = fullText.slice(spokenLen);
+        let pending = fullText.slice(spokenLen);
         if (!pending) return;
         if (force) { spokenLen = fullText.length; speakChunk(pending); return; }
-        if (spokenLen === 0 && !/[.!?。！？\n]/.test(pending)) {
-          const m = /^[^,，;；]{10,}?[,，;；]/.exec(pending);
-          if (m) { spokenLen += m[0].length; speakChunk(m[0]); }
-          return;
+        while (true) {
+          pending = fullText.slice(spokenLen);
+          if (!pending) break;
+          const sMatch = /^[^.!?。！？\n]*[.!?。！？\n]+/.exec(pending);
+          if (sMatch) {
+            spokenLen += sMatch[0].length;
+            speakChunk(sMatch[0]);
+            continue;
+          }
+          const cMatch = /^[^.!?。！？\n,，;；]{10,}?[,，;；]/.exec(pending);
+          if (cMatch) {
+            spokenLen += cMatch[0].length;
+            speakChunk(cMatch[0]);
+            continue;
+          }
+          break;
         }
-        SENTENCE_RE.lastIndex = 0;
-        const matches = pending.match(SENTENCE_RE);
-        if (!matches) return;
-        spokenLen += matches.join('').length;
-        for (const s of matches) speakChunk(s);
       };
 
       try {

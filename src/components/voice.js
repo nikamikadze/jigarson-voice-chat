@@ -24,6 +24,8 @@ let sourceNode = null;
 let muteGain = null;
 
 const TARGET_RATE = 16000;
+const VAD_AUDIO_RATE = 16000;
+const PCM_CHUNK_BYTES = 32 * 1024;
 
 // ── 狀態回調 ──
 let onStateChange = null;   // (state: 'idle'|'listening'|'processing'|'speaking') => void
@@ -46,6 +48,26 @@ function downsampleToPCM16(float32, inRate) {
   return new Uint8Array(out.buffer);
 }
 
+function sendCapturedSpeech(audioData) {
+  if (!audioData || !audioData.length || !ws || ws.readyState !== WebSocket.OPEN) return 0;
+  const pcm16 = downsampleToPCM16(audioData, VAD_AUDIO_RATE);
+  for (let offset = 0; offset < pcm16.byteLength; offset += PCM_CHUNK_BYTES) {
+    ws.send(pcm16.slice(offset, offset + PCM_CHUNK_BYTES));
+  }
+  return pcm16.byteLength;
+}
+
+async function primeMicPermission() {
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+    s.getTracks().forEach((t) => t.stop());
+  } catch (err) {
+    throw err;
+  }
+}
+
 // ── VAD 初始化 ──
 // Pre-warm VAD immediately on module load so the first click is instant.
 let vadReady = null;
@@ -65,6 +87,7 @@ async function initVAD() {
   if (vad) return vad;   // idempotent: never build two VAD instances
   vad = await MicVAD.new({
     model: 'v5',
+    startOnLoad: false,
     baseAssetPath: '/vad/',
     // Load the ONNX Runtime WASM from our own origin (/vad/), matching the
     // installed onnxruntime-web version. The old CDN pin (1.14.0) mismatched
@@ -86,7 +109,7 @@ async function initVAD() {
     negativeSpeechThreshold: 0.35,
     minSpeechFrames: 5,
     preSpeechPadFrames: 10,
-    redemptionFrames: 6,   // ~576ms silence preserves natural pauses in task commands
+    redemptionFrames: 4,   // ~384ms silence — faster end-of-speech; still rides short pauses
 
     onSpeechStart: () => {
       dbg('voice.speechStart');
@@ -115,14 +138,17 @@ async function initVAD() {
       if (vad) await vad.pause();
 
       if (ws && ws.readyState === WebSocket.OPEN) {
+        const bytes = sendCapturedSpeech(audioData);
+        dbg('voice.sentCapturedSpeech', { bytes });
         ws.send(JSON.stringify({ type: 'end' }));
       }
 
       // 等播放完才回到 listening
       await waitPlaybackDone();
 
-      // Wait for a short guard time (600ms) to let speakers turn off and echoes settle
-      await new Promise(resolve => setTimeout(resolve, 600));
+      // Short guard so speakers turn off and echoes settle before re-listening
+      // (350ms; was 600ms). Lower = faster next turn, but too low risks echo re-trigger.
+      await new Promise(resolve => setTimeout(resolve, 350));
 
       // Resume VAD for the next turn
       if (isVoiceMode && !isRecordingStream) {
@@ -278,13 +304,11 @@ export async function startVoiceMode() {
   dbg('voice.start');
 
   try {
-    // 1) Acquire the microphone FIRST — synchronously inside the user's tap.
-    //    iOS Safari only allows getUserMedia (and the permission prompt) while
-    //    the user gesture is still "active", and every await below would
-    //    consume it. Doing this first also grants mic permission for the VAD's
-    //    own internal getUserMedia that follows.
-    await startMicStreaming();
-    dbg('voice.micStreamingStarted');
+    // 1) Acquire microphone permission inside the user's tap, then immediately
+    //    release it. VAD owns the actual live mic stream; keeping a second
+    //    parallel stream open causes broken/choppy capture on some phones.
+    await primeMicPermission();
+    dbg('voice.micPermissionReady');
 
     // 2) Mutual exclusion: only one voice mode at a time. Stop Gemini Live if on.
     try {

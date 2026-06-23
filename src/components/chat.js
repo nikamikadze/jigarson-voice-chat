@@ -20,6 +20,10 @@ const tokensOutEl = document.getElementById('tokens-out');
 const contextValueEl = document.getElementById('context-value');
 const contextBarEl = document.getElementById('context-bar');
 const contextBarLabelEl = document.getElementById('context-bar-label');
+const modelAliasEl = document.getElementById('model-alias');
+const sessionKeyEl = document.getElementById('session-key');
+const headerSessionKeyEl = document.getElementById('header-session-key');
+const headerModelAliasEl = document.getElementById('header-model-alias');
 // 單次對話 token 使用量
 let lastTokensIn = 0;
 let lastTokensOut = 0;
@@ -133,6 +137,26 @@ function animateBar(barEl, toPct, duration = 800) {
   barEl.style.width = toPct + '%';
 }
 
+function shortSessionKey(key) {
+  const value = String(key || '').trim();
+  if (!value) return '—';
+  const parts = value.split(':');
+  const tail = parts[parts.length - 1] || value;
+  return value.length > 28 ? `${parts.slice(0, 2).join(':')}:…:${tail}` : value;
+}
+
+function modelAlias(data = {}) {
+  return data.selectedModel || data.model || data.configuredModel || '';
+}
+
+function formatModelName(data = {}) {
+  const selected = modelAlias(data);
+  if (!selected) return '';
+  return data.provider && !selected.includes('/')
+    ? `${data.provider}/${selected}`
+    : selected;
+}
+
 // 從後端拉 Model Status
 async function fetchModelStatus() {
   try {
@@ -140,12 +164,23 @@ async function fetchModelStatus() {
     if (!res.ok) return;
     const data = await res.json();
 
-    // 模型名稱
-    if (data.model && modelNameEl) {
-      const display = data.provider
-        ? `${data.provider}/${data.model}`.toUpperCase()
-        : data.model.toUpperCase();
-      modelNameEl.textContent = display;
+    const displayModel = formatModelName(data);
+    const alias = modelAlias(data);
+
+    if (displayModel && modelNameEl) {
+      modelNameEl.textContent = displayModel.toUpperCase();
+    }
+    if (alias && modelAliasEl) {
+      modelAliasEl.textContent = alias.toUpperCase();
+    }
+    if (headerModelAliasEl) {
+      headerModelAliasEl.textContent = alias ? `MODEL ${alias.toUpperCase()}` : 'MODEL —';
+    }
+
+    if (data.sessionKey) {
+      const shortKey = shortSessionKey(data.sessionKey);
+      if (sessionKeyEl) sessionKeyEl.textContent = shortKey;
+      if (headerSessionKeyEl) headerSessionKeyEl.textContent = `SESSION ${shortKey}`;
     }
     if (data.contextWindow) contextWindow = data.contextWindow;
 
@@ -740,6 +775,7 @@ export function initChat() {
 
   // 初始化 Model Status
   setTimeout(fetchModelStatus, 3500);
+  setInterval(fetchModelStatus, 5000);
 
   // 檢查後端狀態
   setTimeout(async () => {

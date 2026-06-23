@@ -4,6 +4,7 @@
 
 import { showNotification } from './notifications.js';
 import { getDeviceId } from '../utils/device-id.js';
+import { dbg } from '../utils/debug-log.js';
 
 export async function initModelPicker() {
   const mount = document.getElementById('agent-model-picker');
@@ -41,19 +42,30 @@ export async function initModelPicker() {
   const short = (id) => id.split('/').pop();
   if (label) label.textContent = short(select.value) || '—';
 
+  async function switchModel(model, { notify = true } = {}) {
+    if (!model) return;
+    if (label) label.textContent = notify ? '…' : short(model);
+    const r = await fetch('/api/model', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, device: getDeviceId() }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'failed');
+    if (label) label.textContent = short(model);
+    if (notify) showNotification(`MODEL: ${short(model).toUpperCase()}`);
+  }
+
+  if (data.primary) {
+    switchModel(data.primary, { notify: false }).catch((err) => {
+      dbg?.('model.defaultSwitchFailed', { err: String(err?.message).slice(0, 120) });
+    });
+  }
+
   select.addEventListener('change', async () => {
     const model = select.value;
-    if (label) label.textContent = '…';
     try {
-      const r = await fetch('/api/model', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, device: getDeviceId() }),
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || 'failed');
-      if (label) label.textContent = short(model);
-      showNotification(`MODEL: ${short(model).toUpperCase()}`);
+      await switchModel(model);
     } catch (err) {
       if (label) label.textContent = short(data.primary) || '—';
       showNotification(`Model switch failed: ${err.message}`);

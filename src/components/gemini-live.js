@@ -221,6 +221,10 @@ export async function startLive() {
     const v = await import('./voice.js');
     if (v.isVoiceActive && v.isVoiceActive()) await v.stopVoiceMode();
   } catch {}
+  try {
+    const g = await import('./openai-live.js');
+    if (g.isGptLiveActive && g.isGptLiveActive()) g.stopGptLive();
+  } catch {}
 
   try {
     playCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: OUT_RATE });

@@ -64,7 +64,6 @@ function quickVoiceCheckReply(text, replyLanguage = '') {
     'do you hear',
     'hear me',
   ].some((p) => compact.includes(p));
-
   if (!looksLikeVoiceCheck || looksLikeTask(compact) || compact.length > 80) return '';
   return /^english$/i.test(replyLanguage) ? 'Yes, I hear you.' : 'კი, მესმის.';
 }
@@ -400,7 +399,7 @@ export function initGeminiSttStream(httpServer, config = {}) {
             console.log('[STT-STREAM] Fallback timeout — using partial transcript');
             await runBrainPipeline(partialTranscript);
           }
-        }, 3500);
+        }, 8000);
       }
     });
 
@@ -514,19 +513,26 @@ export function initGeminiSttStream(httpServer, config = {}) {
       };
 
       const flushSentences = (fullText, force) => {
-        const pending = fullText.slice(spokenLen);
+        let pending = fullText.slice(spokenLen);
         if (!pending) return;
         if (force) { spokenLen = fullText.length; speakChunk(pending); return; }
-        if (spokenLen === 0 && !/[.!?。！？\n]/.test(pending)) {
-          const m = /^[^,，;；]{24,}?[,，;；]/.exec(pending);
-          if (m) { spokenLen += m[0].length; speakChunk(m[0]); }
-          return;
+        while (true) {
+          pending = fullText.slice(spokenLen);
+          if (!pending) break;
+          const sMatch = /^[^.!?。！？\n]*[.!?。！？\n]+/.exec(pending);
+          if (sMatch) {
+            spokenLen += sMatch[0].length;
+            speakChunk(sMatch[0]);
+            continue;
+          }
+          const cMatch = /^[^.!?。！？\n,，;；]{24,}?[,，;；]/.exec(pending);
+          if (cMatch) {
+            spokenLen += cMatch[0].length;
+            speakChunk(cMatch[0]);
+            continue;
+          }
+          break;
         }
-        SENTENCE_RE.lastIndex = 0;
-        const matches = pending.match(SENTENCE_RE);
-        if (!matches) return;
-        spokenLen += matches.join('').length;
-        for (const s of matches) speakChunk(s);
       };
 
       let responseText = '';

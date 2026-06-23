@@ -12,8 +12,10 @@ import { deviceSessionKey } from './session-key.js';
 import { initTTS } from './tts.js';
 import { startSystemMonitor } from './system-monitor.js';
 import { initLiveProxy } from './gemini-live.js';
+import { initOpenAIRealtimeProxy } from './openai-realtime.js';
 import { initVoiceStream } from './voice-stream.js';
 import { initGeminiSttStream } from './gemini-stt-stream.js';
+import { initGoogleSttStream } from './google-stt-stream.js';
 
 // Routes
 import chatRoutes from './routes/chat.js';
@@ -30,7 +32,7 @@ import sessionsRoutes from './routes/sessions-routes.js';
 import sttRoutes from './routes/stt-routes.js';
 import brainRoutes from './routes/brain-routes.js';
 import keysRoutes from './routes/keys-routes.js';
-import { initSTT } from './stt.js';
+import { getSttEngine, initSTT } from './stt.js';
 import usageRoutes from './routes/usage.js';
 import controlRoutes from './routes/control.js';
 
@@ -159,11 +161,20 @@ const liveWss = initLiveProxy(server, {
   voice: config.live?.voice || config.tts?.geminiVoice || 'Aoede',
 });
 
+// OpenAI Realtime voice proxy (WebSocket at /api/live-openai)
+const liveOpenAiWss = initOpenAIRealtimeProxy(server, {
+  model: config.liveOpenai?.model,
+  system: config.liveOpenai?.system,
+  sessionKey: SESSION_KEY,
+  voice: config.liveOpenai?.voice || 'alloy',
+});
+
 // Voice streaming proxy (WebSocket at /api/voice-stream)
 const voiceWss = initVoiceStream(server, config);
 
-// Gemini Live streaming STT proxy (WebSocket at /api/voice-stt)
-const sttWss = initGeminiSttStream(server, config);
+// Streaming STT proxies (WebSocket at /api/voice-stt)
+const geminiSttWss = initGeminiSttStream(server, config);
+const googleSttWss = initGoogleSttStream(server, config);
 
 server.on('upgrade', (request, socket, head) => {
   const pathname = request.url.split('?')[0];
@@ -172,11 +183,16 @@ server.on('upgrade', (request, socket, head) => {
     liveWss.handleUpgrade(request, socket, head, (ws) => {
       liveWss.emit('connection', ws, request);
     });
+  } else if (pathname === '/api/live-openai') {
+    liveOpenAiWss.handleUpgrade(request, socket, head, (ws) => {
+      liveOpenAiWss.emit('connection', ws, request);
+    });
   } else if (pathname === '/api/voice-stream') {
     voiceWss.handleUpgrade(request, socket, head, (ws) => {
       voiceWss.emit('connection', ws, request);
     });
   } else if (pathname === '/api/voice-stt') {
+    const sttWss = getSttEngine() === 'google-cloud' ? googleSttWss : geminiSttWss;
     sttWss.handleUpgrade(request, socket, head, (ws) => {
       sttWss.emit('connection', ws, request);
     });

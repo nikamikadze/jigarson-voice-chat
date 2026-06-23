@@ -239,9 +239,14 @@ function startMirror() {
   const txt = (id) => (document.getElementById(id)?.textContent || '').trim();
   const update = () => {
     const model = txt('model-name');
-    sbModel.textContent = model && model !== '—' ? model : 'JARVIS';
+    const alias = txt('model-alias');
+    sbModel.textContent = alias && alias !== '—'
+      ? alias
+      : (model && model !== '—' ? model : 'JARVIS');
     const tin = txt('tokens-in'), tout = txt('tokens-out'), ctx = txt('context-value');
+    const session = txt('session-key');
     const parts = [];
+    if (session && session !== '—') parts.push(session);
     if (tin && tin !== '—') parts.push(`↑${tin}`);
     if (tout && tout !== '—') parts.push(`↓${tout}`);
     if (ctx && ctx !== '—') parts.push(`CTX ${ctx}`);

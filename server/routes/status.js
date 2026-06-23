@@ -47,7 +47,12 @@ export default function statusRoutes(config, ocConfigPath) {
       } catch {}
 
       res.json({
+        sessionKey,
         model: lastMsg?.model || sessionInfo.model || '',
+        selectedModel: sessionInfo.selectedModel || sessionInfo.model || lastMsg?.model || '',
+        configuredModel: sessionInfo.configuredModel || '',
+        modelSelectionReason: sessionInfo.modelSelectionReason || null,
+        runtime: sessionInfo.runtime || '',
         provider: lastMsg?.provider || '',
         contextTokens: sessionInfo.contextTokens || 0,
         totalTokens: sessionInfo.totalTokens || lastMsg?.usage?.totalTokens || 0,

@@ -32,6 +32,7 @@ import { initMobileToolbar } from './components/mobile-toolbar.js';
 import { initPowerSave, isPowerSave } from './components/powersave.js';
 import { initVoiceUI } from './components/voice-ui.js';
 import { initGeminiLive } from './components/gemini-live.js';
+import { initOpenAiLive } from './components/openai-live.js';
 import { initUsage } from './components/usage.js';
 import { initVoicePicker } from './components/voice-picker.js';
 import { initLiveVoicePicker } from './components/live-voice-picker.js';
@@ -75,6 +76,7 @@ document.addEventListener('DOMContentLoaded', async function () {
   initControls();
   initVoiceUI();
   initGeminiLive();
+  initOpenAiLive();
   initUsage();
   initVoicePicker();
   initLiveVoicePicker();
