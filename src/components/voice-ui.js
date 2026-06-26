@@ -7,12 +7,13 @@ import { addChatLine } from './chat.js';
 import { showNotification } from './notifications.js';
 import { dbg } from '../utils/debug-log.js';
 import { playAudioUrl } from '../utils/audio-player.js';
+import { clearFloatingResponse, scheduleFloatingResponseHide, showFloatingResponse } from './floating-response.js';
 
 const STATE_LABEL = {
-  idle: 'VOICE',
-  listening: 'LISTENING',
-  processing: 'THINKING',
-  speaking: 'SPEAKING',
+  idle: 'Talk',
+  listening: 'Listening',
+  processing: 'Thinking',
+  speaking: 'Speaking',
 };
 
 // Map voice states onto the orb's existing agent-state visuals.
@@ -25,6 +26,7 @@ const STATE_TO_ORB = {
 
 let btn = null;
 let currentReplyLine = null;  // the in-progress agent reply line element
+let floatingReplyBuffer = '';
 
 function injectButton() {
   if (document.getElementById('voice-toggle-btn')) return;
@@ -32,7 +34,7 @@ function injectButton() {
   const b = document.createElement('button');
   b.id = 'voice-toggle-btn';
   b.type = 'button';
-  b.setAttribute('aria-label', 'Toggle voice mode');
+  b.setAttribute('aria-label', 'Talk to assistant');
   b.innerHTML = `
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -41,7 +43,7 @@ function injectButton() {
       <line x1="12" y1="19" x2="12" y2="23"/>
       <line x1="8" y1="23" x2="16" y2="23"/>
     </svg>
-    <span class="voice-label">VOICE</span>`;
+    <span class="voice-label">Talk</span>`;
 
   const style = document.createElement('style');
   style.textContent = `
@@ -102,6 +104,51 @@ function injectButton() {
       #voice-toggle-btn .voice-label {
         display: none;
       }
+    }
+
+    #voice-toggle-btn {
+      background: rgba(255, 255, 255, 0.88) !important;
+      color: #111827 !important;
+      border: 1px solid rgba(17, 24, 39, 0.1) !important;
+      box-shadow: 0 16px 38px rgba(0, 0, 0, 0.16) !important;
+      backdrop-filter: blur(24px) saturate(1.4) !important;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif !important;
+      letter-spacing: 0 !important;
+      font-weight: 650 !important;
+      text-transform: none !important;
+    }
+    #voice-toggle-btn:hover {
+      box-shadow: 0 18px 42px rgba(0, 0, 0, 0.2) !important;
+      transform: translateY(-1px);
+    }
+    #voice-toggle-btn.state-listening,
+    #voice-toggle-btn.state-processing,
+    #voice-toggle-btn.state-speaking {
+      background: rgba(10, 132, 255, 0.92) !important;
+      color: #fff !important;
+      border-color: transparent !important;
+    }
+    @media (max-width: 768px) {
+      #voice-toggle-btn {
+        left: 50% !important;
+        right: auto !important;
+        bottom: calc(var(--mobile-chat-height, 300px) + 18px + env(safe-area-inset-bottom, 0px)) !important;
+        transform: translateX(-50%);
+        min-width: 148px;
+        min-height: 50px !important;
+        justify-content: center;
+        border-radius: 999px !important;
+        font-size: 15px !important;
+      }
+      #voice-toggle-btn:hover {
+        transform: translateX(-50%) translateY(-1px);
+      }
+      #voice-test-btn {
+        display: none !important;
+      }
+      body:has(.terminal-panel.chat-panel.chat-collapsed) #voice-toggle-btn {
+        bottom: calc(116px + env(safe-area-inset-bottom, 0px)) !important;
+      }
     }`;
   document.head.appendChild(style);
 
@@ -154,7 +201,7 @@ function setButtonState(state) {
   btn.classList.remove('state-idle', 'state-listening', 'state-processing', 'state-speaking');
   btn.classList.add('state-' + state);
   const label = btn.querySelector('.voice-label');
-  if (label) label.textContent = STATE_LABEL[state] || 'VOICE';
+  if (label) label.textContent = STATE_LABEL[state] || 'Talk';
 }
 
 export function initVoiceUI() {
@@ -170,7 +217,15 @@ export function initVoiceUI() {
     const state = e.detail || 'idle';
     setButtonState(isVoiceActive() ? state : 'idle');
     window.dispatchEvent(new CustomEvent('agent-state', { detail: STATE_TO_ORB[state] || 'idle' }));
-    if (state === 'listening') currentReplyLine = null; // new turn → fresh reply line
+    if (state === 'listening') {
+      currentReplyLine = null; // new turn → fresh reply line
+      floatingReplyBuffer = '';
+      clearFloatingResponse();
+    }
+    if (state === 'idle' && floatingReplyBuffer) {
+      showFloatingResponse(floatingReplyBuffer, { final: true });
+      scheduleFloatingResponseHide();
+    }
   });
 
   // What the user said (final confirmed)
@@ -200,6 +255,9 @@ export function initVoiceUI() {
   window.addEventListener('voice-response-text', (e) => {
     const chunk = e.detail || '';
     if (!chunk) return;
+    floatingReplyBuffer += chunk;
+    showFloatingResponse(floatingReplyBuffer);
+    scheduleFloatingResponseHide();
     if (!currentReplyLine) {
       currentReplyLine = addChatLine(chunk, 'agent-line');
     } else {

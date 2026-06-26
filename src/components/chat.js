@@ -8,6 +8,7 @@ import { dbg } from '../utils/debug-log.js';
 import { playAudioUrl } from '../utils/audio-player.js';
 import { isVoiceActive } from './voice.js';
 import { getDeviceId } from '../utils/device-id.js';
+import { clearFloatingResponse, scheduleFloatingResponseHide, showFloatingResponse } from './floating-response.js';
 
 const terminalContent = document.getElementById('terminal-content');
 const chatInput = document.getElementById('chat-input');
@@ -174,7 +175,7 @@ async function fetchModelStatus() {
       modelAliasEl.textContent = alias.toUpperCase();
     }
     if (headerModelAliasEl) {
-      headerModelAliasEl.textContent = alias ? `MODEL ${alias.toUpperCase()}` : 'MODEL —';
+      headerModelAliasEl.textContent = alias ? `MODEL ${alias.toUpperCase()}` : 'MODEL --';
     }
 
     if (data.sessionKey) {
@@ -399,6 +400,7 @@ function handleChatEvent(data) {
     }
     // delta 是累積的完整文字
     replyBuffer = text;
+    showFloatingResponse(replyBuffer);
     if (currentReplyLine) {
       const msgSpan = currentReplyLine.querySelector('.msg-text');
       if (msgSpan) msgSpan.textContent = replyBuffer;
@@ -416,6 +418,9 @@ function handleChatEvent(data) {
 
     // 回覆完成 → Orb 通知
     if (replyBuffer) {
+      showFloatingResponse(replyBuffer, { final: true });
+      scheduleFloatingResponseHide();
+
       const cfg = getConfig();
       const agentName = cfg?.agent?.name || 'JARVIS';
       addOrbMessage(`${agentName}: ${replyBuffer}`);
@@ -608,6 +613,7 @@ async function handleChatSend() {
   // 不預建回覆行，等 SSE 第一個 chunk 再建
   currentReplyLine = null;
   replyBuffer = '';
+  clearFloatingResponse();
 
   try {
     let res;
@@ -652,7 +658,7 @@ async function handleChatSend() {
     setTimeout(() => {
       if (isWaiting && activeRunId === result.runId) {
         if (!replyBuffer) {
-          addChatLine('TIMEOUT — 等待回覆超時', 'system-line');
+          addChatLine('TIMEOUT - RESPONSE TOOK TOO LONG', 'system-line');
         }
         if (streamSpeedTimer) { clearInterval(streamSpeedTimer); streamSpeedTimer = null; }
         window.dispatchEvent(new CustomEvent('agent-stream', { detail: 0 }));
@@ -707,18 +713,18 @@ export function initChat() {
       pendingFiles = [...pendingFiles, ...files];
       updateAttachBtn(pendingFiles.length);
       // 顯示通知
-      addChatLine(`📋 已貼上 ${files.length} 張圖片，輸入訊息後送出`, 'system-line');
+      addChatLine(`${files.length} image file(s) attached. Add a message and send.`, 'system-line');
     });
   }
 
   // 初始化系統訊息（config 已載入）
   const cfg = getConfig();
   const agentName = cfg?.agent?.name || 'JARVIS';
-  const agentEmoji = cfg?.agent?.emoji || '🤖';
+  const agentEmoji = cfg?.agent?.emoji || 'AI';
 
   // 直接顯示系統訊息，不用打字動畫
   setTimeout(() => {
-    addChatLine(`SYSTEM INITIALIZED. ${agentName.toUpperCase()} INTERFACE ONLINE.`, 'system-line');
+    addChatLine(`${agentName} is ready.`, 'system-line');
   }, 1000);
 
   // 手機版：點 header 收合/展開聊天面板
@@ -783,14 +789,14 @@ export function initChat() {
       const res = await fetch('/api/status');
       const data = await res.json();
       if (data.gateway) {
-        addChatLine('OPENCLAW GATEWAY ONLINE ✓', 'system-line');
-        addOrbMessage('GATEWAY ONLINE ✓');
+        addChatLine('OPENCLAW GATEWAY ONLINE', 'system-line');
+        addOrbMessage('GATEWAY ONLINE');
       } else {
         addChatLine('GATEWAY CONNECTING...', 'system-line');
       }
     } catch {
-      addChatLine('BACKEND NOT AVAILABLE — DEMO MODE', 'system-line');
-      addOrbMessage('⚠ DEMO MODE');
+      addChatLine('BACKEND NOT AVAILABLE - DEMO MODE', 'system-line');
+      addOrbMessage('DEMO MODE');
     }
   }, 3000);
 }

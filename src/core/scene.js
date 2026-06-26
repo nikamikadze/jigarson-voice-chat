@@ -14,7 +14,7 @@ let isDraggingAnomaly = false;
 let anomalyVelocity = new THREE.Vector2(0, 0);
 let anomalyTargetPosition = new THREE.Vector3(0, 0, 0);
 let anomalyOriginalPosition = new THREE.Vector3(0, 0, 0);
-let defaultCameraPosition = new THREE.Vector3(0, window.innerWidth <= 768 ? 1.2 : 0, window.innerWidth <= 768 ? 14 : 10);
+let defaultCameraPosition = new THREE.Vector3(0, 0, window.innerWidth <= 768 ? 14 : 10);
 let zoomedCameraPosition = new THREE.Vector3(0, 0, 7);
 let updateGlow = null;
 
@@ -520,7 +520,7 @@ export function onWindowResize(resizeCanvasCallback) {
   // 手機 ↔ 桌面切換時更新 camera 距離
   const isMobile = window.innerWidth <= 768;
   const newZ = isMobile ? 14 : 10;
-  const newY = isMobile ? 1.2 : 0;
+  const newY = 0;
   defaultCameraPosition.z = newZ;
   defaultCameraPosition.y = newY;
   if (!isDraggingAnomaly) {

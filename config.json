@@ -2,7 +2,7 @@
   "name": "JARVIS",
   "agent": {
     "name": "JARVIS",
-    "emoji": "🤖",
+    "emoji": "AI",
     "sessionKey": "agent:main:main",
     "skills": []
   },
@@ -38,7 +38,7 @@
     "monthlyBudget": 60
   },
   "theme": {
-    "accentPrimary": "#ff4e42",
-    "accentSecondary": "#c0392b"
+    "accentPrimary": "#0a84ff",
+    "accentSecondary": "#0066cc"
   }
 }

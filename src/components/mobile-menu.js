@@ -8,7 +8,7 @@
 
 import { isPowerSave, setPowerSave } from './powersave.js';
 
-const isMobile = window.matchMedia('(max-width: 768px)').matches;
+const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
 
 function injectStyle() {
   const css = `
@@ -111,6 +111,252 @@ function injectStyle() {
   body.mm-open #live-toggle-btn,
   body.mm-open #mm-slimbar,
   body.mm-open #mm-hamburger { visibility: hidden; }
+
+  /* Calm mobile shell */
+  #mm-hamburger {
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    left: 14px;
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    color: #111827;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+    backdrop-filter: blur(22px) saturate(1.35);
+  }
+  #mm-slimbar {
+    top: calc(14px + env(safe-area-inset-top, 0px));
+    left: 66px;
+    right: 14px;
+    height: 38px;
+    justify-content: flex-start;
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    color: #111827;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.1);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+    font-size: 13px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  #mm-slimbar .mm-sb-model { max-width: 62%; }
+  #mm-overlay {
+    background: rgba(15, 23, 42, 0.18);
+    backdrop-filter: blur(14px);
+  }
+  #mm-drawer {
+    width: min(88vw, 360px);
+    background: rgba(248, 248, 250, 0.92);
+    border-right: 1px solid rgba(17, 24, 39, 0.08);
+    box-shadow: 24px 0 70px rgba(15, 23, 42, 0.22);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+    text-transform: none;
+  }
+  #mm-drawer .mm-head {
+    color: #111827;
+    font-size: 18px;
+    letter-spacing: 0;
+    font-weight: 700;
+  }
+  #mm-drawer .mm-close {
+    border-radius: 999px;
+    background: rgba(17, 24, 39, 0.06);
+    color: #111827;
+  }
+  #mm-drawer .data-panel.system-status {
+    display: none !important;
+  }
+  #mm-drawer .mm-list { gap: 10px; }
+  #mm-drawer .mm-item {
+    min-height: 52px;
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid rgba(17, 24, 39, 0.06);
+    color: #111827;
+    border-radius: 16px;
+    font-size: 15px;
+    letter-spacing: 0;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+  }
+  #mm-drawer .mm-item .mm-ic {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    background: rgba(10, 132, 255, 0.1);
+    color: #0a84ff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  #mm-drawer .mm-item.mm-danger {
+    border-color: rgba(255, 59, 48, 0.16);
+    color: #b42318;
+    background: rgba(255, 255, 255, 0.82);
+  }
+  #live-toggle-btn {
+    display: none !important;
+  }
+  #gpt-toggle-btn,
+  #jarvis-control-panel,
+  #usage-btn,
+  #voice-test-btn,
+  #mobile-toolbar {
+    display: none !important;
+  }
+  #mm-hamburger,
+  #mm-slimbar {
+    display: none !important;
+  }
+  body:not(.mobile-chat-open) {
+    --mobile-chat-height: 0px;
+  }
+  body:not(.mobile-chat-open) .terminal-panel.chat-panel {
+    pointer-events: none !important;
+    opacity: 0 !important;
+    transform: translateY(calc(100% + 24px)) scale(0.98) !important;
+  }
+  body.mobile-chat-open .terminal-panel.chat-panel {
+    pointer-events: auto !important;
+    opacity: 1 !important;
+    transform: translateY(0) scale(1) !important;
+  }
+  #voice-toggle-btn {
+    left: 50% !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: calc(26px + env(safe-area-inset-bottom, 0px)) !important;
+    width: 132px !important;
+    min-width: 132px !important;
+    height: 54px !important;
+    min-height: 54px !important;
+    max-height: 54px !important;
+    padding: 0 20px !important;
+    transform: translateX(-50%) !important;
+    z-index: 10002 !important;
+  }
+  body.mobile-chat-open #voice-toggle-btn {
+    bottom: calc(var(--mobile-chat-height) + 20px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  #mobile-chat-toggle {
+    left: calc(50% - 116px) !important;
+    width: 92px !important;
+    min-width: 92px !important;
+  }
+  #mobile-more-toggle {
+    position: fixed;
+    left: calc(50% + 116px);
+    bottom: calc(26px + env(safe-area-inset-bottom, 0px));
+    z-index: 10002;
+    width: 92px;
+    min-width: 92px;
+    height: 54px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 18px;
+    border: 1px solid rgba(17, 24, 39, 0.1);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.88);
+    color: #111827;
+    box-shadow: 0 16px 38px rgba(15, 23, 42, 0.14);
+    backdrop-filter: blur(24px) saturate(1.4);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: 0;
+    cursor: pointer;
+    transform: translateX(-50%);
+    box-sizing: border-box;
+    transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease, bottom 0.24s ease;
+  }
+  body.mobile-chat-open #mobile-more-toggle {
+    bottom: calc(var(--mobile-chat-height) + 20px + env(safe-area-inset-bottom, 0px));
+  }
+  body.usage-panel-open #mobile-chat-toggle,
+  body.usage-panel-open #voice-toggle-btn,
+  body.usage-panel-open #mobile-more-toggle {
+    display: none !important;
+  }
+  @media (max-width: 390px) {
+    #mobile-chat-toggle,
+    #mobile-more-toggle {
+      min-width: 76px !important;
+      padding: 0 14px !important;
+    }
+    #mobile-chat-toggle span,
+    #mobile-more-toggle span {
+      display: none;
+    }
+    #voice-toggle-btn {
+      min-width: 128px !important;
+    }
+  }
+
+  :root {
+    --dock-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    --dock-height: 56px;
+    --dock-side: 92px;
+    --dock-main: 136px;
+    --dock-gap: 10px;
+    --dock-chat-gap: 34px;
+  }
+  #mobile-chat-toggle,
+  #mobile-more-toggle,
+  #voice-toggle-btn {
+    top: auto !important;
+    bottom: var(--dock-bottom) !important;
+    height: var(--dock-height) !important;
+    min-height: var(--dock-height) !important;
+    max-height: var(--dock-height) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 999px !important;
+    box-sizing: border-box !important;
+    z-index: 10020 !important;
+    transform: translateX(-50%) !important;
+  }
+  #mobile-chat-toggle {
+    left: calc(50% - (var(--dock-main) / 2) - (var(--dock-side) / 2) - var(--dock-gap)) !important;
+    width: var(--dock-side) !important;
+    min-width: var(--dock-side) !important;
+  }
+  #voice-toggle-btn {
+    left: 50% !important;
+    right: auto !important;
+    width: var(--dock-main) !important;
+    min-width: var(--dock-main) !important;
+    padding: 0 20px !important;
+  }
+  #mobile-more-toggle {
+    left: calc(50% + (var(--dock-main) / 2) + (var(--dock-side) / 2) + var(--dock-gap)) !important;
+    width: var(--dock-side) !important;
+    min-width: var(--dock-side) !important;
+  }
+  #mobile-chat-toggle,
+  #mobile-more-toggle {
+    background: rgba(255, 255, 255, 0.88) !important;
+    color: #111827 !important;
+  }
+  #mobile-chat-toggle.active {
+    background: #111827 !important;
+    color: #fff !important;
+  }
+  body.mobile-chat-open #mobile-chat-toggle,
+  body.mobile-chat-open #mobile-more-toggle,
+  body.mobile-chat-open #voice-toggle-btn {
+    bottom: calc(var(--mobile-chat-height) + var(--dock-chat-gap) + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  @media (max-width: 390px) {
+    :root {
+      --dock-side: 84px;
+      --dock-main: 124px;
+      --dock-gap: 8px;
+    }
+  }
 }`;
   const style = document.createElement('style');
   style.id = 'mm-style';
@@ -118,7 +364,7 @@ function injectStyle() {
   document.head.appendChild(style);
 }
 
-let drawer, overlay, hamburger, slimbar;
+let drawer, overlay, hamburger, slimbar, moreButton;
 let refreshLite = () => {};
 
 function openDrawer() {
@@ -148,13 +394,10 @@ function openDataCenter(tab) {
 }
 
 const MENU = [
-  { ic: '⚙', label: 'SETTINGS / MODELS', fn: () => openDataCenter('controls') },
-  { ic: '🗂', label: 'DATA CENTER', fn: () => openDataCenter() },
-  { ic: '📈', label: 'AUDIO SPECTRUM', fn: () => { closeDrawer(); clickEl('.mobile-toolbar-btn[data-panel="spectrum"]'); } },
-  { ic: '◈', label: 'USAGE', fn: () => { closeDrawer(); clickEl('#usage-btn'); } },
-  { ic: '💾', label: 'BACKUP', fn: () => { closeDrawer(); clickEl('#jcp-backup'); } },
-  { ic: '🔊', label: 'TEST AUDIO', fn: () => { closeDrawer(); clickEl('#voice-test-btn'); } },
-  { ic: '⏹', label: 'STOP AGENT', danger: true, fn: () => { closeDrawer(); clickEl('#jcp-stop'); } },
+  { ic: 'P', label: 'Preferences', fn: () => openDataCenter('controls') },
+  { ic: 'A', label: 'Activity', fn: () => openDataCenter() },
+  { ic: 'U', label: 'Usage', fn: () => { closeDrawer(); clickEl('#usage-btn'); } },
+  { ic: 'S', label: 'Stop assistant', danger: true, fn: () => { closeDrawer(); clickEl('#jcp-stop'); } },
 ];
 
 function buildDOM() {
@@ -166,10 +409,12 @@ function buildDOM() {
   hamburger.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>`;
   hamburger.addEventListener('click', openDrawer);
 
+  moreButton = document.getElementById('mobile-more-toggle');
+
   // Slim status strip
   slimbar = document.createElement('div');
   slimbar.id = 'mm-slimbar';
-  slimbar.innerHTML = `<span class="mm-sb-model" id="mm-sb-model">—</span><span class="mm-sb-sep">·</span><span class="mm-sb-dim" id="mm-sb-tokens">—</span>`;
+  slimbar.innerHTML = `<span class="mm-sb-model" id="mm-sb-model">Assistant</span><span class="mm-sb-sep">/</span><span class="mm-sb-dim" id="mm-sb-tokens">Ready</span>`;
   slimbar.addEventListener('click', openDrawer);
 
   // Overlay
@@ -182,7 +427,7 @@ function buildDOM() {
   drawer.id = 'mm-drawer';
   const head = document.createElement('div');
   head.className = 'mm-head';
-  head.innerHTML = `<span>☰ MENU</span><span class="mm-close" aria-label="Close">✕</span>`;
+  head.innerHTML = `<span>Menu</span><span class="mm-close" aria-label="Close">x</span>`;
   head.querySelector('.mm-close').addEventListener('click', closeDrawer);
   drawer.appendChild(head);
 
@@ -201,7 +446,7 @@ function buildDOM() {
   lite.className = 'mm-item';
   refreshLite = () => {
     const on = isPowerSave();
-    lite.innerHTML = `<span class="mm-ic">${on ? '🔋' : '⚡'}</span><span>LITE MODE — ${on ? 'ON' : 'OFF'}</span>`;
+    lite.innerHTML = `<span class="mm-ic">L</span><span>Low power ${on ? 'on' : 'off'}</span>`;
     lite.style.borderColor = on ? 'rgba(var(--accent-rgb, 41 211 255), 0.85)' : '';
     lite.style.background = on ? 'rgba(var(--accent-rgb, 41 211 255), 0.18)' : '';
   };
@@ -240,25 +485,24 @@ function startMirror() {
   const update = () => {
     const model = txt('model-name');
     const alias = txt('model-alias');
-    sbModel.textContent = alias && alias !== '—'
+    sbModel.textContent = alias && alias !== '—' && alias !== '--'
       ? alias
-      : (model && model !== '—' ? model : 'JARVIS');
+      : (model && model !== '—' && model !== '--' ? model : 'Assistant');
     const tin = txt('tokens-in'), tout = txt('tokens-out'), ctx = txt('context-value');
     const session = txt('session-key');
     const parts = [];
-    if (session && session !== '—') parts.push(session);
-    if (tin && tin !== '—') parts.push(`↑${tin}`);
-    if (tout && tout !== '—') parts.push(`↓${tout}`);
-    if (ctx && ctx !== '—') parts.push(`CTX ${ctx}`);
-    sbTokens.textContent = parts.length ? parts.join('  ') : 'ONLINE';
+    if (session && session !== '—' && session !== '--') parts.push(session);
+    if (ctx && ctx !== '—' && ctx !== '--') parts.push(ctx);
+    sbTokens.textContent = parts.length ? parts.join(' / ') : 'Ready';
   };
   update();
   setInterval(update, 1500);
 }
 
 export function initMobileMenu() {
-  if (!isMobile) return;
+  if (!isMobile()) return;
   injectStyle();
   buildDOM();
+  window.__openMobileMenu = openDrawer;
   startMirror();
 }

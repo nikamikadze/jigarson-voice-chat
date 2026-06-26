@@ -57,10 +57,10 @@ document.addEventListener('DOMContentLoaded', async function () {
   document.title = config.name || 'JARVIS';
   const agentName = config.agent?.name || 'JARVIS';
   const chatLabel = document.querySelector('.terminal-panel.chat-panel .terminal-header span');
-  if (chatLabel) chatLabel.textContent = `${agentName} CHAT`;
+  if (chatLabel) chatLabel.textContent = agentName;
 
   // 設定 agent prefix CSS 變數
-  const emoji = config.agent?.emoji || '⚡';
+  const emoji = config.agent?.emoji || 'AI';
   document.documentElement.style.setProperty('--agent-prefix', `"${agentName} ${emoji} "`);
 
   // 載入畫面
@@ -93,6 +93,7 @@ document.addEventListener('DOMContentLoaded', async function () {
   initVisualizers();
   initTimestamp();
   initAudioControls();
+  initMobileActionDock();
 
   // 控制滑桿回呼（連結場景）
   setCallbacks({
@@ -106,10 +107,17 @@ document.addEventListener('DOMContentLoaded', async function () {
   // Orb 狀態文字（agent-state → #orb-status）
   const orbStatus = document.getElementById('orb-status');
   if (orbStatus) {
-    const labels = { idle: 'IDLE · 待命中', thinking: 'THINKING · 思考中...', responding: 'RESPONDING · 回覆中...' };
+    const labels = {
+      idle: 'Ready',
+      thinking: 'Thinking',
+      responding: 'Speaking',
+    };
     window.addEventListener('agent-state', (e) => {
       orbStatus.textContent = labels[e.detail] || e.detail.toUpperCase();
       orbStatus.className = 'scanner-id state-' + (e.detail || 'idle');
+      if (window.matchMedia('(max-width: 768px)').matches) {
+        orbStatus.classList.add('mobile-orb-status');
+      }
 
       // 狀態視覺回饋：掃描線速度 + 粒子活躍度
       const scannerLine = document.querySelector('.scanner-line');
@@ -140,7 +148,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     const updateMeta = () => {
       orbMeta.textContent = channelName
-        ? `${channelName}${msgCount ? ` · ${msgCount} MSGS` : ''}`
+        ? `${channelName}${msgCount ? ` - ${msgCount} MSGS` : ''}`
         : (msgCount ? `${msgCount} MSGS` : '');
     };
 
@@ -242,6 +250,176 @@ document.addEventListener('DOMContentLoaded', async function () {
   // 暴露給 animate loop
   window.__jarvisHiddenPause = () => hiddenPause;
 });
+
+function initMobileActionDock() {
+  if (window.__mobileActionDockBound) return;
+  window.__mobileActionDockBound = true;
+  relocateMobileOrbStatus();
+
+  const setChatOpen = (open) => {
+    const btn = document.getElementById('mobile-chat-toggle');
+    document.body.classList.toggle('mobile-chat-open', open);
+    btn?.classList.toggle('active', open);
+    btn?.setAttribute('aria-label', open ? 'Close chat' : 'Open chat');
+  };
+
+  setChatOpen(false);
+
+  document.addEventListener('click', (e) => {
+    const chatBtn = e.target.closest?.('#mobile-chat-toggle');
+    if (chatBtn) {
+      e.preventDefault();
+      setChatOpen(!document.body.classList.contains('mobile-chat-open'));
+      return;
+    }
+
+    const moreBtn = e.target.closest?.('#mobile-more-toggle');
+    if (moreBtn) {
+      e.preventDefault();
+      openMobileMoreSheet();
+    }
+  });
+}
+
+function relocateMobileOrbStatus() {
+  const status = document.getElementById('orb-status');
+  if (!status || !window.matchMedia('(max-width: 768px)').matches) return;
+  document.body.appendChild(status);
+  status.classList.add('mobile-orb-status');
+}
+
+function openMobileMoreSheet() {
+  let overlay = document.getElementById('mobile-more-overlay');
+  let sheet = document.getElementById('mobile-more-sheet');
+
+  if (!overlay || !sheet) {
+    overlay = document.createElement('div');
+    overlay.id = 'mobile-more-overlay';
+
+    sheet = document.createElement('div');
+    sheet.id = 'mobile-more-sheet';
+    sheet.innerHTML = `
+      <div class="mobile-more-handle"></div>
+      <div class="mobile-more-head">
+        <div>
+          <strong>More</strong>
+          <span>Useful controls</span>
+        </div>
+        <button type="button" class="mobile-more-close" aria-label="Close">x</button>
+      </div>
+      <div class="mobile-more-list">
+        <button type="button" data-more-action="preferences"><span>P</span><b>Preferences</b></button>
+        <button type="button" data-more-action="activity"><span>A</span><b>Activity</b></button>
+        <button type="button" data-more-action="usage"><span>U</span><b>Usage</b></button>
+        <button type="button" data-more-action="power"><span>L</span><b>Low power</b></button>
+        <button type="button" data-more-action="stop" class="danger"><span>S</span><b>Stop assistant</b></button>
+      </div>`;
+
+    document.body.appendChild(overlay);
+    document.body.appendChild(sheet);
+
+    overlay.addEventListener('click', closeMobileMoreSheet);
+    sheet.querySelector('.mobile-more-close')?.addEventListener('click', closeMobileMoreSheet);
+    setupSwipeToClose(sheet, closeMobileMoreSheet);
+    sheet.addEventListener('click', (e) => {
+      const action = e.target.closest?.('[data-more-action]')?.dataset.moreAction;
+      if (!action) return;
+      handleMobileMoreAction(action);
+    });
+  }
+
+  overlay.classList.add('open');
+  sheet.classList.add('open');
+  document.body.classList.add('mobile-more-open');
+}
+
+function closeMobileMoreSheet() {
+  document.getElementById('mobile-more-overlay')?.classList.remove('open');
+  document.getElementById('mobile-more-sheet')?.classList.remove('open');
+  document.body.classList.remove('mobile-more-open');
+}
+
+function handleMobileMoreAction(action) {
+  const clickEl = (selector) => document.querySelector(selector)?.click();
+  closeMobileMoreSheet();
+
+  if (action === 'preferences') {
+    openMobileInfoSheet('controls');
+  } else if (action === 'activity') {
+    openMobileInfoSheet('tasks');
+  } else if (action === 'usage') {
+    clickEl('#usage-btn');
+  } else if (action === 'power') {
+    clickEl('#powersave-btn');
+  } else if (action === 'stop') {
+    clickEl('#jcp-stop');
+  }
+}
+
+function openMobileInfoSheet(tab = 'tasks') {
+  const panel = document.querySelector('.info-center');
+  const overlay = document.getElementById('mobile-overlay');
+  const chat = document.querySelector('.terminal-panel.chat-panel');
+  if (!panel) return;
+
+  panel.classList.add('mobile-slide');
+  panel.offsetHeight;
+  panel.classList.add('mobile-open');
+  overlay?.classList.add('visible');
+  chat?.classList.add('panel-behind');
+  document.body.classList.add('mobile-sheet-open');
+
+  document.querySelectorAll('.tab-btn-r').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.rtab === tab);
+  });
+  document.querySelectorAll('.rtab-content').forEach((content) => {
+    content.classList.toggle('active', content.id === `rtab-${tab}`);
+  });
+
+  const close = () => {
+    panel.classList.remove('mobile-open');
+    overlay?.classList.remove('visible');
+    chat?.classList.remove('panel-behind');
+    document.body.classList.remove('mobile-sheet-open');
+    setTimeout(() => {
+      if (!panel.classList.contains('mobile-open')) panel.classList.remove('mobile-slide');
+    }, 300);
+    overlay?.removeEventListener('click', close);
+  };
+  overlay?.addEventListener('click', close);
+  setupSwipeToClose(panel, close);
+}
+
+function setupSwipeToClose(sheet, close) {
+  if (!sheet || sheet.dataset.swipeCloseBound === 'true') return;
+  sheet.dataset.swipeCloseBound = 'true';
+
+  let startY = 0;
+  let dragging = false;
+
+  sheet.addEventListener('touchstart', (e) => {
+    const target = e.target;
+    if (target.closest?.('input, textarea, select, button')) return;
+    startY = e.touches[0].clientY;
+    dragging = true;
+    sheet.style.transition = 'none';
+  }, { passive: true });
+
+  sheet.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    const delta = Math.max(0, e.touches[0].clientY - startY);
+    sheet.style.transform = `translateY(${delta}px)`;
+  }, { passive: true });
+
+  sheet.addEventListener('touchend', (e) => {
+    if (!dragging) return;
+    dragging = false;
+    const delta = Math.max(0, e.changedTouches[0].clientY - startY);
+    sheet.style.transition = '';
+    sheet.style.transform = '';
+    if (delta > 80) close();
+  }, { passive: true });
+}
 
 // Service Worker disabled — it caused stale cached bundles (unstyled loads, old JS).
 // Unregister any existing SW and drop its caches so the app always loads fresh.

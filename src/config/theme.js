@@ -69,7 +69,7 @@ export function setThemeHue(hue) {
  */
 export function getThemeHue() {
   const stored = localStorage.getItem('jarvis-theme-hue');
-  return stored ? parseInt(stored, 10) : 5; // 預設紅色
+  return stored ? parseInt(stored, 10) : 210;
 }
 
 /**
@@ -113,6 +113,10 @@ export function getAccentHex() {
  * 初始化主題系統
  */
 export function initTheme() {
+  if (localStorage.getItem('jarvis-redesign-theme') !== 'apple-v1') {
+    localStorage.setItem('jarvis-theme-hue', '210');
+    localStorage.setItem('jarvis-redesign-theme', 'apple-v1');
+  }
   const hue = getThemeHue();
   setThemeHue(hue);
 }
